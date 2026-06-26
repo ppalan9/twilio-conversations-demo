@@ -145,6 +145,26 @@ twilio-conversations-demo/
 | Tunnel | cloudflared (auto-installed) or ngrok |
 
 ---
+## Wait but i am not logged into my public git repo
+
+  **Option A — No Git**
+
+  1. Go to https://github.com/ppalan9/twilio-conversations-demo
+  2. Click the green Code button
+  3. Click Download ZIP
+  4. Unzip it
+  5. Open Terminal, drag the folder into the Terminal window (auto-fills the path), press Enter
+  6. Run: ./scripts/bootstrap.sh
+  7. Open http://localhost:5050
+
+  ---
+  **Option B — With Git**
+  
+  git clone https://github.com/ppalan9/twilio-conversations-demo.git
+  cd twilio-conversations-demo
+  ./scripts/bootstrap.sh
+
+---
 
 ## License
 
