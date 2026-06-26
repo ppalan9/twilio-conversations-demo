@@ -511,6 +511,24 @@ def _write_env():
         f.writelines(lines)
 
 
+@app.route("/api/verify-caller-id", methods=["POST"])
+def api_verify_caller_id():
+    """Initiate Twilio caller ID verification — Twilio calls the number with a code."""
+    data  = request.get_json(force=True)
+    phone = data.get("phone", "").strip()
+    if not phone:
+        return jsonify({"error": "missing phone"}), 400
+    if not TWILIO_SID or not TWILIO_TOKEN:
+        return jsonify({"error": "Twilio credentials not configured yet"}), 400
+    try:
+        from twilio.rest import Client
+        client = Client(TWILIO_SID, TWILIO_TOKEN)
+        validation = client.validation_requests.create(phone_number=phone)
+        return jsonify({"ok": True, "validation_code": validation.validation_code, "phone": phone})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/send-sms", methods=["POST"])
 def api_send_sms():
     """Optionally send an outbound SMS from the demo UI."""

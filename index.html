@@ -610,18 +610,36 @@ body{background:radial-gradient(ellipse at 15% 60%,rgba(124,58,237,0.15) 0%,tran
         </div>
       </div>
 
-      <!-- STEP 3: Test number + finish -->
+      <!-- STEP 3: Verify phone number -->
       <div class="wiz-step" id="wiz-step-2">
         <div class="wiz-step-label">Step 3 of 3</div>
-        <div class="wiz-step-title">Your phone number</div>
-        <div class="wiz-step-desc">Optional — we'll send a test SMS to confirm end-to-end delivery works. Include country code.</div>
+        <div class="wiz-step-title">Verify your mobile number</div>
+        <div class="wiz-step-desc">Trial accounts can only send SMS to verified numbers. Enter yours — Twilio will call you with a code to confirm.</div>
         <div class="wiz-field">
           <label>Your mobile number <span style="font-weight:400;color:var(--ink3)">(optional)</span></label>
-          <input type="tel" id="wiz-phone" placeholder="+1 415 555 0100" oninput="wizMark(this)">
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <input type="tel" id="wiz-phone" placeholder="+1 415 555 0100" oninput="wizMark(this)" style="flex:1">
+            <button id="wiz-call-btn" onclick="wizInitiateVerify()" style="white-space:nowrap;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">📞 Call me</button>
+          </div>
         </div>
-        <div class="wiz-optional-row">
+        <!-- Code entry — shown after call is initiated -->
+        <div id="wiz-verify-block" style="display:none">
+          <div class="wiz-optional-row" style="margin-bottom:12px">
+            <div class="wiz-opt-icon">📞</div>
+            <p>Twilio is calling you now. When prompted, enter <strong id="wiz-vcode" style="font-family:monospace;font-size:15px;color:var(--blue);letter-spacing:2px"></strong></p>
+          </div>
+          <div class="wiz-field">
+            <label>Confirmed? Enter the code you heard</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="wiz-confirm-code" placeholder="123456" maxlength="6" style="font-family:monospace;letter-spacing:3px;font-size:16px;width:140px">
+              <button onclick="wizConfirmVerify()" style="padding:10px 16px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Verify ✓</button>
+            </div>
+          </div>
+          <div id="wiz-verify-status" style="font-size:12px;margin-top:4px"></div>
+        </div>
+        <div class="wiz-optional-row" id="wiz-skip-verify-row">
           <div class="wiz-opt-icon">⚡</div>
-          <p><strong>Skip this and go straight to mock mode.</strong> You can add your number later via Configure Keys in the top bar.</p>
+          <p><strong>Skip this</strong> — go straight to mock mode. Add your number later via Configure Keys.</p>
         </div>
         <div id="wiz-connecting" style="display:none;font-size:13px;color:var(--ink2);text-align:center;padding:8px 0">
           Connecting to backend…
@@ -1324,6 +1342,57 @@ async function wizNext() {
     statusEl.textContent = 'Server offline — keys saved, running mock mode. Start demo_server.py to go live.';
     statusEl.className = 'wiz-status';
     setTimeout(() => { updateCredsUI(!!(vals.anthropic||vals.sid)); wizClose(); }, 2200);
+  }
+}
+
+async function wizInitiateVerify() {
+  const phone = document.getElementById('wiz-phone').value.trim();
+  const statusEl = document.getElementById('wiz-status');
+  if (!phone) { statusEl.textContent = 'Enter your mobile number first.'; statusEl.className = 'wiz-status err'; return; }
+
+  const btn = document.getElementById('wiz-call-btn');
+  btn.disabled = true;
+  btn.textContent = 'Calling…';
+  statusEl.textContent = '';
+
+  try {
+    const r = await fetch('/api/verify-caller-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const d = await r.json();
+    if (d.ok && d.validation_code) {
+      document.getElementById('wiz-vcode').textContent = d.validation_code;
+      document.getElementById('wiz-verify-block').style.display = 'block';
+      document.getElementById('wiz-skip-verify-row').style.display = 'none';
+      btn.textContent = '📞 Call me again';
+      btn.disabled = false;
+    } else {
+      statusEl.textContent = d.error || 'Could not initiate call. Check your Twilio credentials.';
+      statusEl.className = 'wiz-status err';
+      btn.textContent = '📞 Call me';
+      btn.disabled = false;
+    }
+  } catch (_) {
+    statusEl.textContent = 'Server offline — start demo_server.py first.';
+    statusEl.className = 'wiz-status err';
+    btn.textContent = '📞 Call me';
+    btn.disabled = false;
+  }
+}
+
+function wizConfirmVerify() {
+  const entered = document.getElementById('wiz-confirm-code').value.trim();
+  const expected = document.getElementById('wiz-vcode').textContent.trim();
+  const vStatus = document.getElementById('wiz-verify-status');
+  if (entered === expected) {
+    vStatus.textContent = '✅ Number verified — outbound SMS is now enabled.';
+    vStatus.style.color = '#16a34a';
+    document.getElementById('wiz-phone').dataset.verified = 'true';
+  } else {
+    vStatus.textContent = '✗ Code didn\'t match — try again or answer the call and listen carefully.';
+    vStatus.style.color = 'var(--red)';
   }
 }
 
