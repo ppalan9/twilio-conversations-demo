@@ -413,6 +413,46 @@ def api_session(sid):
     s = sessions.get(sid, {})
     return jsonify({"history_len": len(s.get("history",[])), "memory": s.get("memory",{}), "channel": s.get("channel","chat")})
 
+@app.route("/api/validate-creds", methods=["POST"])
+def api_validate_creds():
+    """Validate credentials before saving — returns {ok, error} per service."""
+    data = request.get_json(force=True)
+    service = data.get("service", "")  # "anthropic" or "twilio"
+
+    if service == "anthropic":
+        key = data.get("key", "").strip()
+        if not key:
+            return jsonify({"ok": False, "error": "No API key provided."})
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=key)
+            client.models.list(limit=1)
+            return jsonify({"ok": True})
+        except Exception as e:
+            msg = str(e)
+            if "401" in msg or "authentication" in msg.lower() or "invalid" in msg.lower():
+                return jsonify({"ok": False, "error": "Invalid API key — check console.anthropic.com → API Keys."})
+            return jsonify({"ok": False, "error": f"Could not reach Anthropic: {msg}"})
+
+    elif service == "twilio":
+        sid   = data.get("sid", "").strip()
+        token = data.get("token", "").strip()
+        if not sid or not token:
+            return jsonify({"ok": False, "error": "Account SID and Auth Token are both required."})
+        try:
+            from twilio.rest import Client
+            client = Client(sid, token)
+            client.api.accounts(sid).fetch()
+            return jsonify({"ok": True})
+        except Exception as e:
+            msg = str(e)
+            if "20003" in msg or "authenticate" in msg.lower() or "401" in msg:
+                return jsonify({"ok": False, "error": "Invalid credentials — check console.twilio.com → Account Info."})
+            return jsonify({"ok": False, "error": f"Could not reach Twilio: {msg}"})
+
+    return jsonify({"ok": False, "error": "Unknown service."}), 400
+
+
 @app.route("/api/config", methods=["POST"])
 def api_config():
     """Accept live credentials from the demo UI, hot-reload them, and optionally provision."""

@@ -1301,16 +1301,59 @@ async function wizNext() {
   if (wizCurrentStep === 0) {
     const key = document.getElementById('wiz-anthropic').value.trim();
     if (!key) { statusEl.textContent = 'Paste your Anthropic API key to continue.'; statusEl.className = 'wiz-status err'; return; }
+
+    const nextBtn = document.getElementById('wiz-next-btn');
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Validating…';
+    statusEl.textContent = '';
+
+    try {
+      const r = await fetch('/api/validate-creds', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ service: 'anthropic', key })
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        statusEl.textContent = d.error;
+        statusEl.className = 'wiz-status err';
+        nextBtn.disabled = false; nextBtn.textContent = 'Next →';
+        return;
+      }
+    } catch (_) {
+      // server offline — allow through, will fail gracefully at step 3
+    }
+
+    nextBtn.disabled = false; nextBtn.textContent = 'Next →';
     wizSetStep(1);
 
   } else if (wizCurrentStep === 1) {
-    // Auto-provision: save Twilio creds then buy a number + wire webhooks
+    // Validate then auto-provision
     const sid   = document.getElementById('wiz-sid').value.trim();
     const token = document.getElementById('wiz-token').value.trim();
     if (!sid || !token) { statusEl.textContent = 'Enter your Account SID and Auth Token to continue.'; statusEl.className = 'wiz-status err'; return; }
 
     const nextBtn = document.getElementById('wiz-next-btn');
     nextBtn.disabled = true;
+    nextBtn.textContent = 'Validating…';
+    statusEl.textContent = '';
+
+    // Validate Twilio creds first
+    try {
+      const rv = await fetch('/api/validate-creds', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ service: 'twilio', sid, token })
+      });
+      const dv = await rv.json();
+      if (!dv.ok) {
+        statusEl.textContent = dv.error;
+        statusEl.className = 'wiz-status err';
+        nextBtn.disabled = false; nextBtn.textContent = 'Next →';
+        return;
+      }
+    } catch (_) {
+      // server offline — continue, will surface at step 3
+    }
+
     nextBtn.textContent = 'Provisioning…';
     statusEl.textContent = '';
 
