@@ -92,17 +92,6 @@ Set these in [Twilio Console](https://console.twilio.com) → Phone Numbers → 
 | Voice | `https://<tunnel>/webhook/voice` |
 | WhatsApp | `https://<tunnel>/webhook/whatsapp` |
 
-Or let bootstrap do it all — buys a number and wires every webhook automatically:
-
-```bash
-./scripts/bootstrap.sh
-```
-
-Already have a number? Skip provisioning:
-
-```bash
-./scripts/bootstrap.sh --skip-provisioning
-```
 
 ---
 
@@ -113,7 +102,7 @@ Already have a number? Skip provisioning:
 2. Installs Flask, Anthropic SDK, Twilio SDK
 3. Installs cloudflared tunnel if none found
 4. Creates .env from .env.example
-5. Starts tunnel → buys Twilio number → wires webhooks → launches server
+5. Starts tunnel → adds your Twilio number → wires webhooks → launches server
 ```
 
 ---
