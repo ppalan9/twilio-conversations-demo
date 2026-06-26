@@ -537,8 +537,6 @@ body{background:radial-gradient(ellipse at 15% 60%,rgba(124,58,237,0.15) 0%,tran
           <div class="mem-node" id="mn-identity">👤 Identity<div class="nl">Recognized</div></div>
           <div class="mem-node" id="mn-observations">📋 Observations<div class="nl">What was said</div></div>
           <div class="mem-node" id="mn-summary">💡 Summary<div class="nl">Distilled context</div></div>
-          <div class="mem-node" id="mn-intent">🎯 Intent<div class="nl">Predicted need</div></div>
-          <div class="mem-node" id="mn-context">🔔 Context<div class="nl">Active situation</div></div>
         </div>
       </div>
 
@@ -700,9 +698,9 @@ body{background:radial-gradient(ellipse at 15% 60%,rgba(124,58,237,0.15) 0%,tran
 <script>
 const LABELS={chat:'Web Chat',sms:'SMS',voice:'Voice',whatsapp:'WhatsApp'};
 const ICONS ={chat:'💬',sms:'📱',voice:'📞',whatsapp:'🟢'};
-const MEM_MAP={identity:'mn-identity',observations:'mn-observations',summary:'mn-summary',intent:'mn-intent',context:'mn-context',
-  // legacy aliases so old mock node names still light up
-  history:'mn-observations',preferences:'mn-summary',activity:'mn-context'};
+const MEM_MAP={identity:'mn-identity',observations:'mn-observations',summary:'mn-summary',
+  // legacy aliases
+  history:'mn-observations',preferences:'mn-summary'};
 
 const st={channel:'chat',sessionId:null,msgCount:0,memLit:new Set(),engaged:new Set(['chat']),useServer:true};
 
@@ -880,21 +878,105 @@ async function callServer(text){
   return r.json();
 }
 
+// Multi-turn mock flows — turns[] cycles on repeated matches so the conversation progresses
 const MOCK=[
-  {kw:[],reply:"Hi there! I'm here to help — what can I assist you with today?",scores:{sentiment:55,intent_confidence:40,resolution_likelihood:50,escalation_risk:10},nodes:['identity'],sigs:[{i:'🔵',t:'orch',m:'Session initialized · Identity lookup started'}]},
-  {kw:['order','track','package','shipping','delivery'],reply:"I can help with that. Let me pull up your details right away.",scores:{sentiment:62,intent_confidence:85,resolution_likelihood:70,escalation_risk:12},nodes:['observations','context','intent'],sigs:[{i:'🧠',t:'mem',m:'Intent: Order tracking · Observations retrieved'},{i:'📊',t:'intel',m:'Confidence 85% · Self-serve flow selected'}]},
-  {kw:['cancel','return','refund'],reply:"Understood — I've already loaded your history so you won't need to repeat anything.",scores:{sentiment:38,intent_confidence:90,resolution_likelihood:68,escalation_risk:45},nodes:['observations','summary','intent'],sigs:[{i:'⚠️',t:'alert',m:'Churn signal detected · Retention flow queued'},{i:'🧠',t:'mem',m:'Observations loaded · Summary applied'}]},
-  {kw:['frustrated','angry','terrible','broken','useless','worst'],reply:"I'm really sorry. I'm escalating this now so the right person handles it personally.",scores:{sentiment:16,intent_confidence:96,resolution_likelihood:52,escalation_risk:88},nodes:['identity','observations','context','summary'],sigs:[{i:'🔴',t:'alert',m:'High frustration · Human escalation triggered'},{i:'📊',t:'intel',m:'Sentiment: critical · Empathy response applied'}]},
-  {kw:['thanks','thank you','great','perfect','resolved','awesome'],reply:"So glad I could help! 😊 Is there anything else I can assist with?",scores:{sentiment:93,intent_confidence:72,resolution_likelihood:96,escalation_risk:4},nodes:['intent','summary'],sigs:[{i:'✅',t:'intel',m:'Sentiment recovered · CSAT prediction: 4.8/5'},{i:'🧠',t:'mem',m:'Outcome stored · Summary updated'}]},
-  {kw:['account','password','login','profile','email'],reply:"I've already verified your identity. What would you like to update?",scores:{sentiment:65,intent_confidence:88,resolution_likelihood:82,escalation_risk:10},nodes:['identity','summary'],sigs:[{i:'🔵',t:'orch',m:'Identity verified · Account tools unlocked'}]},
-  {kw:['price','plan','upgrade','cost'],reply:"Based on your usage history, I can walk you through the best options for you.",scores:{sentiment:70,intent_confidence:84,resolution_likelihood:76,escalation_risk:8},nodes:['observations','intent','summary'],sigs:[{i:'📊',t:'intel',m:'Intent: upgrade · Offer personalized'},{i:'🧠',t:'mem',m:'Observations applied to recommendation'}]},
+  {kw:[],turns:["Hi there! I'm here to help — what can I assist you with today?"],scores:{sentiment:55,intent_confidence:40,resolution_likelihood:50,escalation_risk:10},nodes:['identity'],sigs:[{i:'🔵',t:'orch',m:'Session initialized · Identity lookup started'}]},
+
+  {kw:['order','track','package','shipping','delivery','arrived','dispatch','where is'],
+   turns:[
+     "Let me pull up your order right away. Can you confirm the email on your account?",
+     "Got it — your order shipped yesterday and is currently in transit. Estimated delivery: tomorrow by 8pm.",
+     "Your package is one stop away. You'll get a notification the moment it's out for delivery.",
+   ],scores:{sentiment:62,intent_confidence:88,resolution_likelihood:78,escalation_risk:10},nodes:['observations',],sigs:[{i:'🧠',t:'mem',m:'Intent: order tracking · Observations retrieved'},{i:'🔵',t:'orch',m:'Routed → Order Management'},{i:'📊',t:'intel',m:'Confidence 88% · Self-serve path selected'}]},
+
+  {kw:['cancel','return','refund','send back','money back','wrong item','damaged'],
+   turns:[
+     "I understand — I've already pulled your history so you won't need to repeat anything. What's the reason for the return?",
+     "No problem. Return label sent to your email. Refund processes within 3–5 business days once received.",
+     "Your refund is confirmed. You'll get a confirmation email shortly. Anything else I can help with?",
+   ],scores:{sentiment:38,intent_confidence:91,resolution_likelihood:70,escalation_risk:42},nodes:['observations','summary',],sigs:[{i:'⚠️',t:'alert',m:'Churn signal detected · Retention flow queued'},{i:'🧠',t:'mem',m:'Order history loaded · Reason captured'},{i:'🔵',t:'orch',m:'Routed → Returns & Refunds'}]},
+
+  {kw:['frustrated','angry','furious','terrible','awful','unacceptable','ridiculous','worst','useless','fed up','not good enough'],
+   turns:[
+     "I'm really sorry — that's not the experience we want you to have at all. I'm escalating this to a senior agent who will personally follow up within the hour.",
+     "I completely understand your frustration. Your case is flagged as high priority and a team lead is reviewing it now.",
+   ],scores:{sentiment:14,intent_confidence:96,resolution_likelihood:48,escalation_risk:91},nodes:['identity','observations','summary'],sigs:[{i:'🔴',t:'alert',m:'Critical frustration · Human escalation triggered'},{i:'📊',t:'intel',m:'Sentiment: critical (14) · Empathy response applied'},{i:'🧠',t:'mem',m:'Escalation flag written to Memory Store'}]},
+
+  {kw:['thanks','thank you','great','perfect','awesome','resolved','sorted','fixed','that works','appreciate'],
+   turns:[
+     "So glad I could help! 😊 Is there anything else I can assist with?",
+     "Wonderful — happy to help anytime. Your satisfaction means a lot to us.",
+   ],scores:{sentiment:94,intent_confidence:78,resolution_likelihood:97,escalation_risk:3},nodes:[,'summary'],sigs:[{i:'✅',t:'intel',m:'Resolution confirmed · CSAT prediction: 4.9/5'},{i:'🧠',t:'mem',m:'Positive outcome stored · Session summary updated'}]},
+
+  {kw:['account','password','login','locked out','sign in','profile','username','two factor','2fa'],
+   turns:[
+     "I've verified your identity. Are you resetting your password or updating something on your account?",
+     "Done — a secure reset link has been sent to your email on file. It expires in 15 minutes.",
+     "Your account has been updated. You're all set — is there anything else?",
+   ],scores:{sentiment:65,intent_confidence:89,resolution_likelihood:84,escalation_risk:8},nodes:['identity','summary'],sigs:[{i:'🔵',t:'orch',m:'Identity verified · Account tools unlocked'},{i:'🧠',t:'mem',m:'Identity node updated · Auth context stored'}]},
+
+  {kw:['price','pricing','plan','upgrade','downgrade','cost','billing','invoice','charge','subscription'],
+   turns:[
+     "You're currently on our Starter plan. What matters most — volume, features, or support level?",
+     "The Growth plan would save you ~20% based on your usage. Want me to apply it now or send a comparison to your email?",
+     "Done — plan updated. You'll see it on your next invoice. Anything else I can help with?",
+   ],scores:{sentiment:70,intent_confidence:85,resolution_likelihood:79,escalation_risk:7},nodes:['observations','summary'],sigs:[{i:'📊',t:'intel',m:'Intent: plan evaluation · Usage history loaded'},{i:'🧠',t:'mem',m:'Billing context stored · Offer personalised'},{i:'🔵',t:'orch',m:'Routed → Billing flow'}]},
+
+  {kw:['not working','broken','error','bug','crash','issue','problem','failed','won\'t load','can\'t','doesn\'t work','glitch'],
+   turns:[
+     "I can see there's been an issue on your account. What were you trying to do when it happened?",
+     "Thanks — I've reproduced it. This is a known bug being actively fixed. I've added you to the notification list.",
+     "The fix has been deployed. Can you try again and let me know if it's working now?",
+   ],scores:{sentiment:42,intent_confidence:87,resolution_likelihood:65,escalation_risk:38},nodes:['observations',],sigs:[{i:'⚠️',t:'alert',m:'Technical issue detected · Diagnostics run'},{i:'🔵',t:'orch',m:'Routed → Technical Support'},{i:'📊',t:'intel',m:'Escalation risk: moderate · Monitoring'}]},
+
+  {kw:['slow','wait','waiting','delayed','delay','late','taking forever','how long','when will'],
+   turns:[
+     "I completely understand — waiting is frustrating. Let me check the status right now.",
+     "The delay was from a processing backlog earlier today. Things are moving again — your request should complete within 30 minutes.",
+   ],scores:{sentiment:35,intent_confidence:82,resolution_likelihood:72,escalation_risk:30},nodes:[,'observations'],sigs:[{i:'⚠️',t:'alert',m:'Delay frustration · Proactive update sent'},{i:'📊',t:'intel',m:'Escalation risk: moderate (30%)'},{i:'🧠',t:'mem',m:'Wait context stored · Empathy flag set'}]},
+
+  {kw:['competitor','switch','switching','cancel my account','leave','moving to','considering'],
+   turns:[
+     "I'm sorry to hear you're thinking about leaving. I'd love to understand what's not working — what's been the main pain point?",
+     "That's really helpful. Based on what you've shared, I think there are a couple of things we can do right now that might change your mind. Can I walk you through them?",
+   ],scores:{sentiment:25,intent_confidence:93,resolution_likelihood:45,escalation_risk:72},nodes:['identity','observations','summary',],sigs:[{i:'🔴',t:'alert',m:'Churn risk: HIGH · Retention flow activated'},{i:'📊',t:'intel',m:'Competitor mention detected · Counter-positioning ready'},{i:'🧠',t:'mem',m:'Churn flag + reason stored in Memory Store'}]},
+
+  {kw:['hello','hi','hey','good morning','good afternoon','howdy'],
+   turns:[
+     "Hey! Great to have you here. What can I help you with today?",
+     "Hi again! I still have your context from earlier — what do you need?",
+   ],scores:{sentiment:65,intent_confidence:50,resolution_likelihood:60,escalation_risk:5},nodes:['identity'],sigs:[{i:'🔵',t:'orch',m:'Session recognised · Context restored'},{i:'🧠',t:'mem',m:'Identity node active · Prior session loaded'}]},
 ];
+
+// Per-session turn counters (keyed by flow index)
+const mockTurns={};
+
 function mockReply(text){
   const t=text.toLowerCase();
-  for(const f of MOCK.slice(1)){ if(f.kw.some(k=>t.includes(k))) return toData(f); }
-  return {reply:"I'm on it — let me look into that for you.",scores:{sentiment:60,intent_confidence:58,resolution_likelihood:60,escalation_risk:18},memory_nodes:['context','observations'],signals:[{i:'🔵',t:'orch',m:'Processing · Context updated'}],mock:true};
+  const sid=st.sessionId||'_';
+  if(!mockTurns[sid]) mockTurns[sid]={};
+
+  for(let i=1;i<MOCK.length;i++){
+    const f=MOCK[i];
+    if(f.kw.some(k=>t.includes(k))){
+      const idx=mockTurns[sid][i]||0;
+      const reply=f.turns[Math.min(idx,f.turns.length-1)];
+      mockTurns[sid][i]=(idx+1);
+      return{reply,scores:f.scores,memory_nodes:f.nodes,signals:f.sigs.map(s=>({icon:s.i,tag:s.t,msg:s.m})),mock:true};
+    }
+  }
+  // Fallback — rotate so it doesn't repeat
+  const fallbacks=[
+    "Got it — I'm looking into that for you right now.",
+    "Let me check on that. One moment.",
+    "I'm on it — pulling up the details now.",
+    "Sure, I can help with that. Can you share a bit more detail?",
+  ];
+  const n=mockTurns[sid]._fallback||0;
+  mockTurns[sid]._fallback=n+1;
+  return{reply:fallbacks[n%fallbacks.length],scores:{sentiment:60,intent_confidence:52,resolution_likelihood:62,escalation_risk:15},memory_nodes:[,'observations'],signals:[{icon:'🔵',tag:'orch',msg:'Processing · Context updated'}],mock:true};
 }
-function toData(f){return{reply:f.reply,scores:f.scores,memory_nodes:f.nodes,signals:f.sigs.map(s=>({icon:s.i,tag:s.t,msg:s.m})),mock:true};}
+function toData(f){return{reply:f.turns[0],scores:f.scores,memory_nodes:f.nodes,signals:f.sigs.map(s=>({icon:s.i,tag:s.t,msg:s.m})),mock:true};}
 
 // ── Send ──────────────────────────────────────────────────────
 async function sendMsg(){

@@ -57,7 +57,7 @@ Customer memory profile (what you know so far):
 
 After each reply, output a JSON block on its own line starting with SIGNALS: containing:
   sentiment (0-100), intent_confidence (0-100), resolution_likelihood (0-100),
-  escalation_risk (0-100), memory_nodes (list from: identity,observations,summary,intent,context),
+  escalation_risk (0-100), memory_nodes (list from: identity,observations,summary),
   signals (list of {{icon, tag (orch|mem|intel|alert), msg}})
 """
     msgs = [{"role": m["role"], "content": m["content"]} for m in session["history"]]
@@ -93,78 +93,230 @@ After each reply, output a JSON block on its own line starting with SIGNALS: con
 
 
 # ── Mock reply engine ─────────────────────────────────────────
+# Each flow: (keywords, turns[], data)
+# turns[] = list of replies cycled through on repeated matches
+# so the conversation progresses naturally without AI
+
 MOCK_FLOWS = [
-    ([], "Hi there! 👋 I'm here to help. What can I assist you with today?",
-     {"sentiment":55,"intent_confidence":40,"resolution_likelihood":50,"escalation_risk":10,
-      "memory_nodes":["identity"],
-      "signals":[{"icon":"🔵","tag":"orch","msg":"Session initialized · Identity lookup started"}]}),
+    # 0 — GREETING (init only)
+    {
+        "keys": [],
+        "turns": ["Hi there! 👋 I'm here to help. What can I assist you with today?"],
+        "data": {
+            "sentiment":55,"intent_confidence":40,"resolution_likelihood":50,"escalation_risk":10,
+            "memory_nodes":["identity"],
+            "signals":[{"icon":"🔵","tag":"orch","msg":"Session initialized · Identity lookup started"}]
+        }
+    },
+    # 1 — ORDER TRACKING
+    {
+        "keys": ["order","track","package","shipping","delivery","where","arrived","dispatch"],
+        "turns": [
+            "Let me pull up your order details right away. Can you confirm the email address on your account?",
+            "Got it — I can see your order. It shipped yesterday and is currently in transit with an estimated delivery of tomorrow by 8pm.",
+            "Your package is one stop away. You'll get a push notification the moment it's out for delivery."],
+        "data": {
+            "sentiment":62,"intent_confidence":88,"resolution_likelihood":78,"escalation_risk":10,
+            "memory_nodes":["observations"],
+            "signals":[
+                {"icon":"🧠","tag":"mem","msg":"Intent: order tracking · Observations retrieved"},
+                {"icon":"🔵","tag":"orch","msg":"Routed → Order Management flow"},
+                {"icon":"📊","tag":"intel","msg":"Confidence 88% · Self-serve path selected"}
+            ]
+        }
+    },
+    # 2 — RETURN / REFUND
+    {
+        "keys": ["cancel","return","refund","send back","money back","wrong item","damaged","broken item"],
+        "turns": [
+            "I understand — I've already pulled your order history so you won't need to repeat anything. What's the reason for the return?",
+            "No problem. I've initiated a return label to your email. Once we receive it, your refund will process within 3–5 business days.",
+            "Your refund has been confirmed. You'll get a confirmation email shortly. Is there anything else I can help with?"],
+        "data": {
+            "sentiment":38,"intent_confidence":91,"resolution_likelihood":70,"escalation_risk":42,
+            "memory_nodes":["observations","summary"],
+            "signals":[
+                {"icon":"⚠️","tag":"alert","msg":"Churn signal detected · Retention flow queued"},
+                {"icon":"🧠","tag":"mem","msg":"Order history loaded · Reason captured"},
+                {"icon":"🔵","tag":"orch","msg":"Routed → Returns & Refunds flow"}
+            ]
+        }
+    },
+    # 3 — FRUSTRATION / ESCALATION
+    {
+        "keys": ["frustrated","angry","furious","terrible","awful","unacceptable","ridiculous","worst","useless","this is a joke","fed up","sick of","not good enough"],
+        "turns": [
+            "I'm really sorry — that's not the experience we want you to have at all. I'm escalating this to a senior agent right now who will personally follow up within the hour.",
+            "I completely understand your frustration and I'm sorry we've let you down. Your case has been flagged as high priority. A team lead is reviewing it now."],
+        "data": {
+            "sentiment":14,"intent_confidence":96,"resolution_likelihood":48,"escalation_risk":91,
+            "memory_nodes":["identity","observations","summary"],
+            "signals":[
+                {"icon":"🔴","tag":"alert","msg":"Critical frustration · Human escalation triggered"},
+                {"icon":"📊","tag":"intel","msg":"Sentiment: critical (14) · Empathy response applied"},
+                {"icon":"🧠","tag":"mem","msg":"Escalation flag written to Memory Store"}
+            ]
+        }
+    },
+    # 4 — POSITIVE CLOSE
+    {
+        "keys": ["thanks","thank you","great","perfect","awesome","resolved","sorted","fixed","that works","you're the best","appreciate"],
+        "turns": [
+            "So glad I could help! 😊 Is there anything else I can assist you with today?",
+            "Wonderful — happy to help anytime! Your satisfaction means a lot to us."],
+        "data": {
+            "sentiment":94,"intent_confidence":78,"resolution_likelihood":97,"escalation_risk":3,
+            "memory_nodes":["summary"],
+            "signals":[
+                {"icon":"✅","tag":"intel","msg":"Resolution confirmed · CSAT prediction: 4.9/5"},
+                {"icon":"🧠","tag":"mem","msg":"Positive outcome stored · Session summary updated"}
+            ]
+        }
+    },
+    # 5 — ACCOUNT / LOGIN
+    {
+        "keys": ["account","password","login","sign in","locked out","email","profile","username","two factor","2fa"],
+        "turns": [
+            "I've verified your identity. Are you trying to reset your password or update something on the account?",
+            "I've sent a secure reset link to your email on file. It expires in 15 minutes — let me know if you need another one.",
+            "Your account has been updated. You're all set — is there anything else?"],
+        "data": {
+            "sentiment":65,"intent_confidence":89,"resolution_likelihood":84,"escalation_risk":8,
+            "memory_nodes":["identity","summary"],
+            "signals":[
+                {"icon":"🔵","tag":"orch","msg":"Identity verified · Account tools unlocked"},
+                {"icon":"🧠","tag":"mem","msg":"Identity node updated · Auth context stored"}
+            ]
+        }
+    },
+    # 6 — BILLING / PRICING
+    {
+        "keys": ["price","pricing","plan","upgrade","downgrade","cost","billing","invoice","charge","fee","subscription","tier"],
+        "turns": [
+            "Based on your current usage, you're on our Starter plan. I can walk you through what each tier includes — which matters most to you: volume, features, or support level?",
+            "The Growth plan would save you about 20% given your usage pattern. Want me to apply that change now or send a comparison to your email first?",
+            "Done — I've applied the plan change. You'll see it reflected on your next invoice. Anything else I can help with?"],
+        "data": {
+            "sentiment":70,"intent_confidence":85,"resolution_likelihood":79,"escalation_risk":7,
+            "memory_nodes":["observations","summary"],
+            "signals":[
+                {"icon":"📊","tag":"intel","msg":"Intent: plan evaluation · Usage history loaded"},
+                {"icon":"🧠","tag":"mem","msg":"Billing context stored · Offer personalised"},
+                {"icon":"🔵","tag":"orch","msg":"Routed → Billing flow"}
+            ]
+        }
+    },
+    # 7 — TECHNICAL / NOT WORKING
+    {
+        "keys": ["not working","broken","error","bug","crash","issue","problem","failed","won't load","can't","doesn't work","glitch"],
+        "turns": [
+            "I can see there's been an issue on your account. Can you tell me what you were trying to do when it happened?",
+            "Thanks — I've reproduced the issue. This is a known bug that our engineering team is actively fixing. I'm adding you to the notification list so you'll hear as soon as it's resolved.",
+            "Good news — the fix has been deployed. Can you try again and let me know if it's working for you now?"],
+        "data": {
+            "sentiment":42,"intent_confidence":87,"resolution_likelihood":65,"escalation_risk":38,
+            "memory_nodes":["observations"],
+            "signals":[
+                {"icon":"⚠️","tag":"alert","msg":"Technical issue detected · Diagnostics run"},
+                {"icon":"🔵","tag":"orch","msg":"Routed → Technical Support flow"},
+                {"icon":"📊","tag":"intel","msg":"Escalation risk: moderate · Monitoring"}
+            ]
+        }
+    },
+    # 8 — SLOW / DELAY
+    {
+        "keys": ["slow","wait","waiting","delayed","delay","late","long time","taking forever","how long","when will"],
+        "turns": [
+            "I completely understand — waiting is frustrating. Let me check the status right now.",
+            "I can see the delay was caused by a processing backlog earlier today. Things are moving again and your request should complete within the next 30 minutes."],
+        "data": {
+            "sentiment":35,"intent_confidence":82,"resolution_likelihood":72,"escalation_risk":30,
+            "memory_nodes":["observations"],
+            "signals":[
+                {"icon":"⚠️","tag":"alert","msg":"Delay frustration detected · Proactive update sent"},
+                {"icon":"📊","tag":"intel","msg":"Escalation risk: moderate (30%)"},
+                {"icon":"🧠","tag":"mem","msg":"Wait context stored · Empathy flag set"}
+            ]
+        }
+    },
+    # 9 — COMPETITOR / SWITCHING
+    {
+        "keys": ["competitor","switch","switching","cancel my account","leave","competitor","other provider","moving to","considering"],
+        "turns": [
+            "I'm sorry to hear you're thinking about leaving — I'd love to understand what's not working so we can address it. What's been the main pain point?",
+            "That's really helpful feedback. Based on what you've shared, I think there are a couple of things we can do right now that might change your mind — can I walk you through them?"],
+        "data": {
+            "sentiment":25,"intent_confidence":93,"resolution_likelihood":45,"escalation_risk":72,
+            "memory_nodes":["identity","observations","summary"],
+            "signals":[
+                {"icon":"🔴","tag":"alert","msg":"Churn risk: HIGH · Retention flow activated"},
+                {"icon":"📊","tag":"intel","msg":"Competitor mention detected · Counter-positioning ready"},
+                {"icon":"🧠","tag":"mem","msg":"Churn flag + reason stored in Memory Store"}
+            ]
+        }
+    },
+    # 10 — HELLO / GREETING
+    {
+        "keys": ["hello","hi","hey","good morning","good afternoon","good evening","howdy","sup","yo"],
+        "turns": [
+            "Hey! Great to have you here. What can I help you with today?",
+            "Hi again! I still have your context from earlier — what do you need?"],
+        "data": {
+            "sentiment":65,"intent_confidence":50,"resolution_likelihood":60,"escalation_risk":5,
+            "memory_nodes":["identity"],
+            "signals":[
+                {"icon":"🔵","tag":"orch","msg":"Session recognised · Context restored"},
+                {"icon":"🧠","tag":"mem","msg":"Identity node active · Prior session loaded"}
+            ]
+        }
+    }]
 
-    (["order","track","package","shipping","delivery","where"],
-     "I can help track that. One moment while I pull up your order details.",
-     {"sentiment":62,"intent_confidence":85,"resolution_likelihood":70,"escalation_risk":12,
-      "memory_nodes":["observations","context","intent"],
-      "signals":[{"icon":"🧠","tag":"mem","msg":"Intent: Order tracking · Observations retrieved"},
-                 {"icon":"📊","tag":"intel","msg":"Confidence 85% · Self-serve flow selected"}]}),
-
-    (["cancel","return","refund","money"],
-     "I understand — I've pulled your history so you won't need to repeat details. Let me look into this.",
-     {"sentiment":38,"intent_confidence":90,"resolution_likelihood":68,"escalation_risk":45,
-      "memory_nodes":["observations","summary","intent"],
-      "signals":[{"icon":"⚠️","tag":"alert","msg":"Churn signal detected · Retention flow queued"},
-                 {"icon":"🧠","tag":"mem","msg":"Observations loaded · Summary applied"}]}),
-
-    (["frustrated","angry","terrible","awful","not working","broken","useless","worst"],
-     "I'm really sorry this has been difficult. I'm escalating this now so the right person handles it personally.",
-     {"sentiment":16,"intent_confidence":96,"resolution_likelihood":52,"escalation_risk":88,
-      "memory_nodes":["identity","observations","context","summary"],
-      "signals":[{"icon":"🔴","tag":"alert","msg":"High frustration · Human escalation triggered"},
-                 {"icon":"📊","tag":"intel","msg":"Sentiment: critical · Empathy response applied"}]}),
-
-    (["thanks","thank you","great","perfect","awesome","resolved","fixed","helped"],
-     "So glad I could help! 😊 Is there anything else I can assist you with?",
-     {"sentiment":93,"intent_confidence":72,"resolution_likelihood":96,"escalation_risk":4,
-      "memory_nodes":["intent","summary"],
-      "signals":[{"icon":"✅","tag":"intel","msg":"Sentiment recovered · CSAT prediction: 4.8/5"},
-                 {"icon":"🧠","tag":"mem","msg":"Outcome stored · Summary updated"}]}),
-
-    (["account","password","login","email","profile"],
-     "I've already verified your identity. What would you like to update on your account?",
-     {"sentiment":65,"intent_confidence":88,"resolution_likelihood":82,"escalation_risk":10,
-      "memory_nodes":["identity","summary"],
-      "signals":[{"icon":"🔵","tag":"orch","msg":"Identity verified · Account tools unlocked"}]}),
-
-    (["price","plan","upgrade","cost","cheap","expensive"],
-     "Based on your usage, I can walk you through the options that make the most sense for you.",
-     {"sentiment":70,"intent_confidence":84,"resolution_likelihood":76,"escalation_risk":8,
-      "memory_nodes":["observations","intent","summary"],
-      "signals":[{"icon":"📊","tag":"intel","msg":"Intent: upgrade evaluation · Offer personalized"},
-                 {"icon":"🧠","tag":"mem","msg":"Observations applied to recommendation"}]}),
-]
-
+# Tracks how many times each session has matched each flow (for multi-turn progression)
 def mock_reply(text: str, session: dict) -> dict:
     t = text.lower()
+
     if t == "__init__":
-        _, reply, data = MOCK_FLOWS[0]
+        flow = MOCK_FLOWS[0]
+        reply = flow["turns"][0]
+        data  = flow["data"]
         session["history"].append({"role": "assistant", "content": reply})
         for node in data.get("memory_nodes", []):
             session["memory"][node] = True
-        return {"reply": reply, **data}
-    for keywords, reply, data in MOCK_FLOWS[1:]:
-        if any(k in t for k in keywords):
-            session["history"].append({"role": "user", "content": text})
+        return {"reply": reply, **data, "mock": True}
+
+    # Match flow by keyword
+    for i, flow in enumerate(MOCK_FLOWS[1:], start=1):
+        if any(k in t for k in flow["keys"]):
+            # Multi-turn: cycle through replies so repeated messages progress naturally
+            turn_key = f"_turns_{i}"
+            turn_idx = session["memory"].get(turn_key, 0)
+            reply = flow["turns"][min(turn_idx, len(flow["turns"]) - 1)]
+            session["memory"][turn_key] = turn_idx + 1
+
+            data = flow["data"]
+            session["history"].append({"role": "user",      "content": text})
             session["history"].append({"role": "assistant", "content": reply})
             for node in data.get("memory_nodes", []):
                 session["memory"][node] = True
-            return {"reply": reply, **data}
-    # Generic fallback
-    reply = "I'm on it — let me look into that for you right away."
-    data = {"sentiment":60,"intent_confidence":58,"resolution_likelihood":60,"escalation_risk":18,
-            "memory_nodes":["context"],
-            "signals":[{"icon":"🔵","tag":"orch","msg":"Processing · Context updated"}]}
-    session["history"].append({"role": "user", "content": text})
+            return {"reply": reply, **data, "mock": True}
+
+    # Fallback — vary by message count so it doesn't feel robotic
+    count = len([h for h in session["history"] if h["role"] == "user"])
+    fallbacks = [
+        "Got it — I'm looking into that for you right now.",
+        "Let me check on that. One moment.",
+        "I'm on it — pulling up the details now.",
+        "Sure, I can help with that. Can you share a bit more so I look in the right place?"]
+    reply = fallbacks[count % len(fallbacks)]
+    data = {
+        "sentiment": 60, "intent_confidence": 52, "resolution_likelihood": 62, "escalation_risk": 15,
+        "memory_nodes": ["observations"],
+        "signals": [{"icon":"🔵","tag":"orch","msg":"Processing · Context updated"}]
+    }
+    session["history"].append({"role": "user",      "content": text})
     session["history"].append({"role": "assistant", "content": reply})
     session["memory"]["context"] = True
-    return {"reply": reply, **data}
+    return {"reply": reply, **data, "mock": True}
 
 
 # ── Twilio inbound SMS/WhatsApp webhook ───────────────────────

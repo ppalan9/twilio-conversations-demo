@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# bootstrap.sh — one-command setup for the Twilio Conversations Layer demo
+# bootstrap.sh — zero-dependency setup for the Twilio Conversations demo
+# Installs uv + Python if missing, then: tunnel + provision + launch
 # Usage:
-#   ./scripts/bootstrap.sh                   # full setup: tunnel + provision + launch
+#   ./scripts/bootstrap.sh                      # full setup
 #   ./scripts/bootstrap.sh --skip-provisioning  # skip Twilio number purchase
 
 set -euo pipefail
@@ -27,9 +28,29 @@ fatal() { echo -e "${RED}✗ $1${RESET}"; exit 1; }
 echo -e "\n${BOLD}Twilio Conversations Layer — Demo Bootstrap${RESET}"
 echo -e "────────────────────────────────────────────\n"
 
-# ── 1. Check .env ─────────────────────────────────────────────
+# ── 1. Install uv (installs Python 3.12 automatically) ────────
+step "Checking uv + Python"
+if ! command -v uv &>/dev/null; then
+  warn "uv not found — installing now (this also installs Python 3.12)"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # Add uv to PATH for the rest of this script
+  export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+fi
+ok "uv $(uv --version)"
+
+# ── 2. Install Python deps ────────────────────────────────────
+step "Installing Python dependencies"
+cd "$ROOT"
+uv sync --quiet
+ok "Dependencies ready (flask, anthropic, twilio)"
+
+# ── 3. Copy .env if missing; open it for editing if keys absent ──
 step "Checking credentials"
-[[ -f "$ENV_FILE" ]] || fatal ".env not found. Run: cp .env.example .env and fill in credentials."
+if [[ ! -f "$ENV_FILE" ]]; then
+  cp "$ROOT/.env.example" "$ENV_FILE"
+  warn ".env created from .env.example"
+  warn "Add your keys now — or skip and use the in-browser wizard at http://localhost:$PORT"
+fi
 
 source_env() {
   set -o allexport
@@ -39,22 +60,14 @@ source_env() {
 }
 source_env
 
-[[ -n "${ANTHROPIC_API_KEY:-}" ]]   || fatal "ANTHROPIC_API_KEY is not set in .env"
-[[ -n "${TWILIO_ACCOUNT_SID:-}" ]]  || fatal "TWILIO_ACCOUNT_SID is not set in .env"
-[[ -n "${TWILIO_AUTH_TOKEN:-}" ]]   || fatal "TWILIO_AUTH_TOKEN is not set in .env"
-ok "Credentials loaded"
+# Keys are optional — wizard in the browser handles them if missing
+if [[ -z "${ANTHROPIC_API_KEY:-}" || "${ANTHROPIC_API_KEY}" == "sk-ant-..."* ]]; then
+  warn "ANTHROPIC_API_KEY not set — demo will run in mock mode until you add it in the browser"
+fi
+ok "Credentials checked"
 
-# ── 2. Check dependencies ─────────────────────────────────────
-step "Checking dependencies"
-
-check_cmd() {
-  command -v "$1" &>/dev/null || fatal "'$1' not found. Install: $2"
-}
-
-check_cmd uv       "https://docs.astral.sh/uv/getting-started/installation/"
-check_cmd python3  "https://python.org"
-
-# Detect tunnel tool
+# ── 4. Install + start tunnel ──────────────────────────────────
+# Detect or auto-install a tunnel tool
 TUNNEL_CMD=""
 if command -v ngrok &>/dev/null; then
   TUNNEL_CMD="ngrok"
@@ -63,8 +76,17 @@ elif command -v cloudflared &>/dev/null; then
   TUNNEL_CMD="cloudflared"
   ok "cloudflared found"
 else
-  warn "No tunnel tool found (ngrok or cloudflared). Install ngrok: https://ngrok.com/download"
-  warn "Continuing without tunnel — webhooks will not work for inbound SMS/Voice/WhatsApp"
+  step "No tunnel found — installing cloudflared (free, no account needed)"
+  if command -v brew &>/dev/null; then
+    brew install cloudflared --quiet && TUNNEL_CMD="cloudflared" && ok "cloudflared installed"
+  elif [[ "$(uname -s)" == "Linux" ]]; then
+    curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+      -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
+    TUNNEL_CMD="cloudflared" && ok "cloudflared installed"
+  else
+    warn "Could not auto-install a tunnel — inbound SMS/Voice/WhatsApp will not work"
+    warn "Install manually: brew install cloudflared  OR  https://ngrok.com/download"
+  fi
 fi
 
 uv sync --quiet
@@ -75,7 +97,7 @@ PUBLIC_URL=""
 TUNNEL_PID=""
 
 if [[ -n "$TUNNEL_CMD" ]]; then
-  step "Starting $TUNNEL_CMD tunnel on port $PORT"
+  step "Starting tunnel on port $PORT"
 
   if [[ "$TUNNEL_CMD" == "ngrok" ]]; then
     ngrok http "$PORT" --log=stdout > /tmp/ngrok.log 2>&1 &
