@@ -1304,6 +1304,45 @@ async function wizNext() {
     wizSetStep(1);
 
   } else if (wizCurrentStep === 1) {
+    // Auto-provision: save Twilio creds then buy a number + wire webhooks
+    const sid   = document.getElementById('wiz-sid').value.trim();
+    const token = document.getElementById('wiz-token').value.trim();
+    if (!sid || !token) { statusEl.textContent = 'Enter your Account SID and Auth Token to continue.'; statusEl.className = 'wiz-status err'; return; }
+
+    const nextBtn = document.getElementById('wiz-next-btn');
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Provisioning…';
+    statusEl.textContent = '';
+
+    try {
+      const r = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sid, token,
+          twilioNum: document.getElementById('wiz-twilio-num').value.trim(),
+          provision: true
+        })
+      });
+      const d = await r.json();
+      if (d.provisioned && d.phone) {
+        // Fill the number field so step 3 and the creds modal show it
+        document.getElementById('wiz-twilio-num').value = d.phone;
+        document.getElementById('f-twilio-num').value   = d.phone;
+        localStorage.setItem('demo_twilio_num', d.phone);
+        statusEl.textContent = `✅ Number provisioned: ${d.phone}`;
+        statusEl.className = 'wiz-status ok';
+      } else if (d.warn) {
+        statusEl.textContent = `⚠ ${d.warn}`;
+        statusEl.className = 'wiz-status';
+      }
+    } catch (_) {
+      statusEl.textContent = 'Server offline — creds saved, provision after starting demo_server.py.';
+      statusEl.className = 'wiz-status';
+    }
+
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Next →';
     wizSetStep(2);
 
   } else {
