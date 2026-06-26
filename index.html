@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversations – Live Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#F22F46;
+  --blue:#0263E0;
+  --blue-mid:#0043A4;
+  --blue-dark:#001489;
+  --blue-light:#CCE0FF;
+  --purple:#7C3AED;
+  --purple-light:#EDE9FE;
+  --teal:#0891B2;
+  --navy:#1A1D2E;--navy2:#252840;
+  --ink:#1A1D2E;--ink2:#5B5F7A;--ink3:#9497B0;
+  --border:#E8E9F3;--bg:#F5F5FA;--white:#fff;
+  --green:#059669;
+  --yellow:#F59E0B;
+  --r:12px;
+  --grad:linear-gradient(135deg,#0263E0 0%,#7C3AED 100%);
+  --grad-warm:linear-gradient(135deg,#F22F46 0%,#F59E0B 100%);
+  --grad-cool:linear-gradient(135deg,#0891B2 0%,#0263E0 100%);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--navy);color:var(--ink);font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.5}
+
+/* SHELL WRAPPER */
+.shell{width:100%;max-width:960px;height:590px;display:flex;border-radius:18px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06)}
+
+/* SIDEBAR — Slack-style: rich dark purple-navy */
+.sidebar{width:58px;background:linear-gradient(180deg,#1A0533 0%,#1A1D2E 100%);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;flex-shrink:0}
+.sb-logo{margin-bottom:16px;display:flex;align-items:center;justify-content:center}
+.sb-logo svg{width:26px;height:26px;filter:drop-shadow(0 2px 6px rgba(242,47,70,0.5))}
+.sb-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:rgba(255,255,255,0.35);transition:all .18s cubic-bezier(.34,1.56,.64,1);position:relative}
+.sb-icon:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.9);transform:scale(1.1)}
+.sb-icon.active{background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(2,99,224,0.4)}
+.sb-icon .badge{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid #1A0533;animation:badgePop .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes badgePop{0%{transform:scale(0)}100%{transform:scale(1)}}
+
+/* CREDENTIALS MODAL */
+.creds-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,20,0.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.creds-overlay.open{display:flex}
+.creds-modal{background:var(--white);border-radius:20px;width:480px;max-width:94vw;box-shadow:0 32px 80px rgba(0,0,0,0.3),0 0 0 1px rgba(0,0,0,0.06);overflow:hidden}
+.creds-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(2,99,224,0.04),rgba(124,58,237,0.04))}
+.creds-head-icon{width:36px;height:36px;background:var(--grad);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 4px 12px rgba(2,99,224,0.3)}
+.creds-head-title{font-size:15px;font-weight:700;color:var(--ink);flex:1;letter-spacing:-.2px}
+.creds-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink3);line-height:1;padding:4px;border-radius:6px;transition:all .15s}
+.creds-close:hover{color:var(--ink);background:var(--bg)}
+.creds-body{padding:20px 24px;display:flex;flex-direction:column;gap:0}
+.creds-section{margin-bottom:16px}
+.creds-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink3);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.creds-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.field input{width:100%;border:2px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;outline:none;font-family:inherit;color:var(--ink);background:var(--bg);transition:border-color .15s,box-shadow .15s}
+.field input:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(2,99,224,0.1);background:var(--white)}
+.field input.has-val{border-color:rgba(5,150,105,0.5);background:rgba(5,150,105,0.03)}
+.field .hint{font-size:11px;color:var(--ink3);margin-top:4px}
+.creds-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg)}
+.creds-status{flex:1;font-size:12px;color:var(--ink2)}
+.creds-status.ok{color:var(--green);font-weight:500}
+.creds-status.err{color:var(--red);font-weight:500}
+.btn-save{background:var(--grad);color:#fff;border:none;border-radius:10px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;box-shadow:0 4px 14px rgba(2,99,224,0.35)}
+.btn-save:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(2,99,224,0.45)}
+.btn-clear{background:none;border:2px solid var(--border);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-clear:hover{border-color:var(--red);color:var(--red)}
+.config-btn{display:flex;align-items:center;gap:6px;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;transition:all .18s;font-family:inherit}
+.config-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(2,99,224,0.04);transform:translateY(-1px)}
+.config-btn.configured{border-color:rgba(5,150,105,0.4);color:var(--green);background:rgba(5,150,105,0.05)}
+
+/* SETUP WIZARD */
+.wizard-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,20,0.82);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(12px)}
+.wizard-overlay.open{display:flex}
+.wizard-modal{background:var(--white);border-radius:24px;width:520px;max-width:96vw;box-shadow:0 40px 100px rgba(0,0,0,0.4),0 0 0 1px rgba(0,0,0,0.06);overflow:hidden;animation:wizIn .35s cubic-bezier(.34,1.4,.64,1)}
+@keyframes wizIn{from{opacity:0;transform:translateY(24px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.wiz-header{background:linear-gradient(135deg,#0263E0 0%,#7C3AED 100%);padding:28px 28px 22px;position:relative;overflow:hidden}
+.wiz-header::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none}
+.wiz-logo{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.wiz-logo svg{width:28px;height:28px;filter:drop-shadow(0 0 10px rgba(255,255,255,0.4))}
+.wiz-logo-text{font-size:16px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.wiz-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:6px;line-height:1.2}
+.wiz-sub{font-size:13px;color:rgba(255,255,255,0.7);font-weight:400;line-height:1.5}
+.wiz-steps-bar{display:flex;gap:6px;margin-top:18px}
+.wiz-step-pip{height:3px;border-radius:2px;background:rgba(255,255,255,0.25);flex:1;transition:background .3s}
+.wiz-step-pip.done{background:#fff}
+.wiz-step-pip.active{background:rgba(255,255,255,0.7)}
+.wiz-body{padding:24px 28px}
+.wiz-step{display:none}
+.wiz-step.active{display:block}
+.wiz-step-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink3);margin-bottom:4px}
+.wiz-step-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:4px;letter-spacing:-.3px}
+.wiz-step-desc{font-size:13px;color:var(--ink2);margin-bottom:18px;line-height:1.55}
+.wiz-step-desc a{color:var(--blue);text-decoration:none;font-weight:500}
+.wiz-step-desc a:hover{text-decoration:underline}
+.wiz-field{margin-bottom:12px}
+.wiz-field label{display:block;font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px}
+.wiz-field input{width:100%;border:2px solid var(--border);border-radius:12px;padding:10px 14px;font-size:13px;outline:none;font-family:inherit;color:var(--ink);background:var(--bg);transition:border-color .15s,box-shadow .15s}
+.wiz-field input:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(2,99,224,0.1);background:#fff}
+.wiz-field input.has-val{border-color:rgba(5,150,105,0.5);background:rgba(5,150,105,0.03)}
+.wiz-field .wiz-hint{font-size:11px;color:var(--ink3);margin-top:4px;display:flex;align-items:center;gap:4px}
+.wiz-field .wiz-hint a{color:var(--blue);text-decoration:none}
+.wiz-optional-row{display:flex;align-items:center;gap:8px;margin-bottom:18px;padding:12px 14px;background:rgba(2,99,224,0.04);border:1.5px solid rgba(2,99,224,0.12);border-radius:12px}
+.wiz-optional-row .wiz-opt-icon{font-size:20px;flex-shrink:0}
+.wiz-optional-row p{font-size:12px;color:var(--ink2);line-height:1.5;margin:0}
+.wiz-optional-row strong{color:var(--ink)}
+.wiz-footer{padding:16px 28px;border-top:1.5px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg)}
+.wiz-back{background:none;border:2px solid var(--border);border-radius:12px;padding:9px 18px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;font-family:inherit;transition:all .15s}
+.wiz-back:hover{border-color:var(--ink3);color:var(--ink)}
+.wiz-skip{background:none;border:none;font-size:12px;color:var(--ink3);cursor:pointer;font-family:inherit;transition:color .15s;margin-right:auto}
+.wiz-skip:hover{color:var(--ink2)}
+.wiz-next{background:var(--grad);color:#fff;border:none;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;box-shadow:0 4px 14px rgba(2,99,224,0.3)}
+.wiz-next:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(2,99,224,0.4)}
+.wiz-next:active{transform:scale(.97)}
+.wiz-next.green{background:linear-gradient(135deg,#059669,#0891B2);box-shadow:0 4px 14px rgba(5,150,105,0.3)}
+.wiz-status{font-size:12px;color:var(--ink2);flex:1}
+.wiz-status.ok{color:var(--green);font-weight:600}
+.wiz-status.err{color:var(--red);font-weight:600}
+/* step 3 success state */
+.wiz-success{text-align:center;padding:8px 0 4px}
+.wiz-success-icon{font-size:48px;margin-bottom:12px;animation:popIn .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
+.wiz-success h3{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:8px;letter-spacing:-.3px}
+.wiz-success p{font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:20px}
+.wiz-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:20px}
+.wiz-chip{font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;border:1.5px solid;letter-spacing:.2px}
+.wiz-chip.blue{color:var(--blue);border-color:rgba(2,99,224,0.3);background:rgba(2,99,224,0.06)}
+.wiz-chip.green{color:var(--green);border-color:rgba(5,150,105,0.3);background:rgba(5,150,105,0.06)}
+.wiz-chip.purple{color:#7C3AED;border-color:rgba(124,58,237,0.3);background:rgba(124,58,237,0.06)}
+
+/* CONSOLE SHELL */
+.console{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;min-width:0}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--white);border-bottom:2px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:800;color:var(--ink);flex:1;letter-spacing:-.4px}
+.topbar-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(2,99,224,0.08);color:var(--blue);border:1.5px solid rgba(2,99,224,0.2)}
+.topbar-badge.mock{background:var(--bg);color:var(--ink3);border-color:var(--border)}
+.topbar-badge.live{background:linear-gradient(135deg,rgba(5,150,105,0.1),rgba(2,99,224,0.08));color:var(--green);border-color:rgba(5,150,105,0.3)}
+
+/* MAIN LAYOUT */
+.content{flex:1;display:grid;grid-template-columns:1fr 248px;overflow:hidden;min-height:0}
+
+/* CONVERSATION PANE */
+.conv-pane{display:flex;flex-direction:column;border-right:2px solid var(--border);background:var(--white);overflow:hidden}
+
+/* CHANNEL TABS — pill style like Slack's channel bar */
+.ch-tabs{display:flex;gap:4px;padding:10px 14px;background:var(--white);border-bottom:2px solid var(--border);flex-shrink:0;overflow-x:auto}
+.ch-tab{display:flex;align-items:center;gap:5px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;border-radius:20px;background:transparent;transition:all .18s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;border:1.5px solid transparent}
+.ch-tab:hover{background:var(--bg);color:var(--ink);transform:translateY(-1px)}
+.ch-tab.active{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(2,99,224,0.3)}
+.ch-tab .ch-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;transition:background .2s}
+.ch-tab:not(.active) .ch-dot{background:var(--border)}
+.ch-tab.engaged:not(.active) .ch-dot{background:var(--green);animation:pulse 2s infinite}
+.ch-tab.active .ch-dot{background:rgba(255,255,255,0.7);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* MESSAGES */
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.messages::-webkit-scrollbar{width:4px}
+.messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.msg{display:flex;gap:10px;align-items:flex-end}
+.msg.from-user{flex-direction:row-reverse}
+.avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.from-agent .avatar{background:var(--grad);color:#fff}
+.from-user .avatar{background:var(--ink);color:#fff}
+.bubble{max-width:72%;padding:10px 14px;border-radius:18px;font-size:13px;font-weight:400;line-height:1.55}
+.from-agent .bubble{background:var(--bg);color:var(--ink);border-bottom-left-radius:4px;border:1.5px solid var(--border)}
+.from-user .bubble{background:var(--grad);color:#fff;border-bottom-right-radius:4px;box-shadow:0 4px 14px rgba(2,99,224,0.25)}
+.msg-time{font-size:10px;color:var(--ink3);margin-top:3px;font-weight:400}
+.sys-msg{text-align:center;font-size:11px;color:var(--ink3);padding:6px 0;display:flex;align-items:center;gap:8px;font-weight:500}
+.sys-msg::before,.sys-msg::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* CHANNEL SWITCH BANNER */
+@keyframes bannerIn{0%{opacity:0;transform:translateY(-8px) scale(.95)}60%{transform:translateY(2px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.ch-switch-banner{background:linear-gradient(135deg,rgba(2,99,224,0.07),rgba(124,58,237,0.06));border:1.5px solid rgba(2,99,224,0.2);border-radius:14px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px;animation:bannerIn .4s cubic-bezier(.34,1.56,.64,1) forwards;margin:2px 0}
+.csb-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.csb-body{flex:1;min-width:0}
+.csb-title{font-size:12px;font-weight:700;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.csb-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.csb-pill{font-size:9px;font-weight:700;padding:3px 9px;border-radius:20px;border:1.5px solid;letter-spacing:.4px;text-transform:uppercase}
+.csb-pill.mem{color:var(--purple);border-color:rgba(124,58,237,0.3);background:rgba(124,58,237,0.07)}
+.csb-pill.orch{color:var(--blue);border-color:rgba(2,99,224,0.3);background:rgba(2,99,224,0.07)}
+.typing-bubble{display:flex;gap:4px;align-items:center;padding:10px 14px}
+.dot-a{width:6px;height:6px;border-radius:50%;background:var(--ink3);animation:bop 1s infinite}
+.dot-a:nth-child(2){animation-delay:.15s}.dot-a:nth-child(3){animation-delay:.3s}
+@keyframes bop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+/* INPUT */
+.input-row{padding:10px 14px;border-top:2px solid var(--border);display:flex;gap:8px;background:var(--white);flex-shrink:0;align-items:center}
+.chat-in{flex:1;border:2px solid var(--border);border-radius:14px;padding:9px 14px;font-size:13px;font-weight:400;outline:none;font-family:inherit;transition:all .18s;background:var(--bg);color:var(--ink)}
+.chat-in:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(2,99,224,0.1);background:var(--white)}
+.send-btn{background:var(--grad);color:#fff;border:none;border-radius:12px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;box-shadow:0 3px 10px rgba(2,99,224,0.3);flex-shrink:0}
+.send-btn:hover{transform:translateY(-1px) scale(1.04);box-shadow:0 5px 16px rgba(2,99,224,0.4)}
+.send-btn:active{transform:scale(.97)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* SIDE PANEL */
+.side-pane{display:flex;flex-direction:column;gap:0;overflow-y:auto;background:var(--bg);min-height:0}
+.side-pane::-webkit-scrollbar{width:3px}
+.side-pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.side-section{padding:12px 14px;border-bottom:1.5px solid var(--border)}
+.side-section:last-child{border-bottom:none}
+.side-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink3);margin-bottom:8px}
+
+/* CHANNEL STATUS */
+.ch-status-list{display:flex;flex-direction:column;gap:5px}
+.ch-status{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);font-size:11px;transition:all .25s}
+.ch-status .cs-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:all .3s}
+.ch-status.engaged{border-color:rgba(5,150,105,0.35);background:rgba(5,150,105,0.04)}
+.ch-status.engaged .cs-dot{background:var(--green);box-shadow:0 0 6px rgba(5,150,105,0.5);animation:pulse 2s infinite}
+.ch-status .cs-lbl{flex:1;font-weight:600;color:var(--ink)}
+.ch-status .cs-time{font-size:10px;color:var(--ink3)}
+
+/* MEMORY GRID */
+.mem-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mem-node{padding:7px 9px;border-radius:10px;border:1.5px solid var(--border);font-size:10px;font-weight:600;opacity:.3;transition:all .4s cubic-bezier(.34,1.4,.64,1);background:var(--white);color:var(--ink);cursor:default}
+.mem-node.lit{opacity:1;border-color:transparent;background:var(--grad);color:#fff}
+.mem-node .nl{font-size:9px;font-weight:400;opacity:.8;margin-top:1px}
+
+/* SCORES */
+.score-row{margin-bottom:9px}
+.score-hd{display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;color:var(--ink2)}
+.score-val{font-weight:700;color:var(--ink)}
+.track{background:var(--border);border-radius:4px;height:6px;overflow:hidden}
+.fill{height:100%;border-radius:4px;width:0;transition:width .9s cubic-bezier(.34,1.2,.64,1)}
+
+/* SIGNAL LOG */
+.sig-log{display:flex;flex-direction:column;gap:5px}
+.sig{display:flex;gap:8px;font-size:10px;padding:7px 9px;border-radius:10px;background:var(--white);border:1.5px solid var(--border);opacity:0;transform:translateY(4px) scale(.97);transition:all .3s cubic-bezier(.34,1.56,.64,1);line-height:1.45}
+.sig.show{opacity:1;transform:translateY(0) scale(1)}
+.sig-tag{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.sig-tag.orch{color:var(--blue)}.sig-tag.mem{color:var(--purple)}.sig-tag.intel{color:var(--teal)}.sig-tag.alert{color:var(--red)}
+
+/* BUBBLE ENTRANCE */
+@keyframes bubbleIn{0%{opacity:0;transform:translateY(10px) scale(.95)}70%{transform:translateY(-2px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.msg{animation:bubbleIn .3s cubic-bezier(.34,1.56,.64,1) forwards}
+
+/* MEM NODE LIT */
+@keyframes nodeFlash{0%{transform:scale(.9)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+.mem-node.lit{animation:nodeFlash .4s cubic-bezier(.34,1.56,.64,1) forwards;box-shadow:0 4px 16px rgba(2,99,224,0.25)}
+
+/* SCORE FLASH */
+@keyframes scoreFlash{0%{opacity:1}40%{opacity:.3}100%{opacity:1}}
+.fill.flash{animation:scoreFlash .5s ease}
+
+/* BODY BG */
+body{background:radial-gradient(ellipse at 15% 60%,rgba(124,58,237,0.15) 0%,transparent 50%),radial-gradient(ellipse at 85% 20%,rgba(2,99,224,0.15) 0%,transparent 50%),var(--navy)}
+
+/* ── SPLASH ── dark theater, high contrast */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* dark navy backdrop — makes content pop */
+.splash{position:absolute;inset:0;background:var(--navy);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:18px;padding:28px 32px 24px;transition:opacity .45s ease,transform .45s ease;overflow:hidden}
+/* subtle noise texture overlay */
+.splash::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");opacity:.4;pointer-events:none;border-radius:18px}
+.splash.out{opacity:0;transform:scale(.97);pointer-events:none}
+
+.splash-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px;animation:fadeUp .5s .05s both}
+.splash-logo svg{width:28px;height:28px;filter:drop-shadow(0 0 12px rgba(242,47,70,0.7))}
+.splash-logo-text{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.4px}
+.splash-logo-text span{color:var(--red)}
+.splash-eyebrow{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4);margin-bottom:20px;animation:fadeUp .45s .15s both;letter-spacing:.2px}
+
+/* LEGO STAGE */
+.lego-stage{width:100%;max-width:680px;margin-bottom:18px;animation:fadeUp .5s .2s both}
+
+/* CONNECTOR TRACK */
+.lego-track{display:flex;align-items:center;justify-content:center;gap:0;position:relative;height:100px}
+
+/* LEGO BRICK — monochrome dark, white when active */
+.lego{display:flex;flex-direction:column;align-items:center;justify-content:center;width:152px;height:88px;border-radius:16px;border:1.5px solid rgba(255,255,255,0.1);cursor:pointer;position:relative;transition:all .25s cubic-bezier(.34,1.56,.64,1);user-select:none;flex-shrink:0;background:rgba(255,255,255,0.04)}
+.lego:hover{transform:translateY(-6px) scale(1.04);border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.07)}
+/* ALL BRICKS: same dark ghost style when inactive */
+.lego.orch,.lego.mem,.lego.intel{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)}
+/* ACTIVE: bright white pop — one accent only */
+.lego.active{background:#fff;border-color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,0.2),0 16px 40px rgba(0,0,0,0.5)}
+.lego.active .lego-name{color:var(--ink)}
+.lego.active .lego-sub{color:var(--ink2)}
+.lego.active .lego-icon{filter:none}
+
+.lego.snapped{animation:snapIn .4s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes snapIn{0%{transform:scale(.82) translateY(10px)}65%{transform:scale(1.06) translateY(-3px)}100%{transform:scale(1) translateY(0)}}
+
+.lego-icon{font-size:26px;margin-bottom:5px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);filter:grayscale(1) brightness(1.6)}
+.lego:hover .lego-icon{transform:scale(1.25) translateY(-2px)}
+.lego.active .lego-icon{filter:none;transform:scale(1.1)}
+
+.lego-name{font-size:11px;font-weight:800;letter-spacing:.1px;color:rgba(255,255,255,0.85);transition:color .2s}
+.lego-sub{font-size:9px;font-weight:400;color:rgba(255,255,255,0.35);margin-top:2px;text-align:center;padding:0 8px;line-height:1.35;transition:color .2s}
+
+/* STUDS via child elements (avoids conflict with shimmer ::after) */
+.lego-studs{position:absolute;top:-8px;left:0;right:0;display:flex;justify-content:space-between;padding:0 24px;pointer-events:none}
+.lego-stud{width:20px;height:9px;border-radius:5px 5px 0 0;border:1.5px solid rgba(255,255,255,0.1);border-bottom:none;background:rgba(255,255,255,0.04);transition:all .2s}
+.lego.active .lego-stud{background:rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.15)}
+
+/* IDLE ATTRACT — staggered breath so bricks feel alive */
+@keyframes brickBreath{0%,100%{border-color:rgba(255,255,255,0.1)}50%{border-color:rgba(255,255,255,0.3);box-shadow:0 0 18px rgba(255,255,255,0.08)}}
+.lego.orch:not(.active){animation:brickBreath 2.8s ease-in-out infinite;animation-delay:0s}
+.lego.mem:not(.active){animation:brickBreath 2.8s ease-in-out infinite;animation-delay:.6s}
+.lego.intel:not(.active){animation:brickBreath 2.8s ease-in-out infinite;animation-delay:1.2s}
+
+/* SHIMMER — sweep on hover */
+.lego::after{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.07) 50%,transparent 65%);background-size:250% 100%;background-position:110% 0;transition:background-position .55s ease;pointer-events:none}
+.lego:hover::after{background-position:-10% 0}
+.lego.active::after{background:none}
+
+/* CONNECTOR PIPE */
+.pipe{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.08);position:relative;flex-shrink:0;transition:all .5s}
+.pipe.lit-orch,.pipe.lit-mem{background:rgba(255,255,255,0.5);box-shadow:0 0 10px rgba(255,255,255,0.25)}
+/* flow dot: bright white ball on pipe */
+.pipe::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(255,255,255,0.9);left:-5px;opacity:0}
+.pipe.flowing::after{animation:flowDot .55s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes flowDot{0%{left:0;opacity:1}80%{opacity:1}100%{left:calc(100% - 10px);opacity:0}}
+
+/* PROGRESS DOTS */
+.lego-progress{display:flex;gap:7px;justify-content:center;margin-top:6px;margin-bottom:2px}
+.prog-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.15);transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+.prog-dot.done{background:#fff;box-shadow:0 0 8px rgba(255,255,255,0.5);transform:scale(1.2)}
+
+/* DESCRIPTION STRIP */
+.lego-desc{height:32px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;opacity:0;transition:opacity .3s}
+.lego-desc.show{opacity:1}
+.desc-chip{font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:5px 16px;transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+.desc-chip.active-orch,.desc-chip.active-mem,.desc-chip.active-intel{color:#fff;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25)}
+.desc-chip.active-all{color:var(--ink);background:#fff;border-color:#fff;font-weight:700;box-shadow:0 4px 20px rgba(255,255,255,0.2)}
+
+/* CHANNELS ROW */
+.ch-row{display:flex;gap:6px;justify-content:center;margin-bottom:16px;animation:fadeUp .4s .5s both}
+.ch-pip{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 11px;cursor:default;transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+.ch-pip.lit{color:#fff;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.ch-pip .pip-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.15);transition:all .3s}
+.ch-pip.lit .pip-dot{background:var(--green);box-shadow:0 0 6px rgba(5,150,105,0.7)}
+
+/* CTA — single red accent, the only color on the screen */
+.splash-cta{background:var(--red);color:#fff;border:none;border-radius:14px;padding:12px 36px;font-size:14px;font-weight:800;cursor:pointer;opacity:0;transform:translateY(10px) scale(.94);transition:all .45s cubic-bezier(.34,1.56,.64,1);font-family:inherit;box-shadow:0 0 0 0 rgba(242,47,70,0.4),0 6px 24px rgba(242,47,70,0.35);letter-spacing:-.1px;position:relative;z-index:1}
+.splash-cta.show{opacity:1;transform:translateY(0) scale(1)}
+.splash-cta:hover{transform:translateY(-3px) scale(1.05);box-shadow:0 0 0 6px rgba(242,47,70,0.15),0 12px 32px rgba(242,47,70,0.45)}
+.splash-cta:active{transform:scale(.98)}
+.splash-tagline{font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px;opacity:0;transition:opacity .4s .1s;font-weight:500}
+.splash-tagline.show{opacity:1}
+
+/* VOICE INPUT */
+.voice-row{display:none;padding:12px 16px;border-top:2px solid var(--border);background:var(--white);flex-direction:column;align-items:center;gap:10px;flex-shrink:0}
+.voice-row.active{display:flex}
+.mic-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+.mic-btn{width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .22s cubic-bezier(.34,1.56,.64,1);background:var(--grad);box-shadow:0 4px 16px rgba(2,99,224,0.35);position:relative}
+.mic-btn:hover{transform:scale(1.1);box-shadow:0 8px 24px rgba(2,99,224,0.45)}
+.mic-btn.recording{background:var(--grad-warm);box-shadow:0 4px 20px rgba(242,47,70,0.45);animation:micPulse 1.2s ease infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(242,47,70,0.4)}50%{box-shadow:0 0 0 14px rgba(242,47,70,0)}}
+.mic-btn svg{width:22px;height:22px;fill:#fff}
+.mic-hint{font-size:10px;color:var(--ink3);font-weight:600;letter-spacing:.2px}
+.waveform{display:flex;align-items:center;gap:3px;height:24px;opacity:0;transition:opacity .3s}
+.waveform.visible{opacity:1}
+.wbar{width:3px;border-radius:2px;background:var(--blue);animation:none;transform-origin:center}
+.waveform.visible .wbar{animation:wave 0.8s ease infinite}
+.wbar:nth-child(1){height:6px;animation-delay:0s}
+.wbar:nth-child(2){height:14px;animation-delay:.1s}
+.wbar:nth-child(3){height:20px;animation-delay:.05s}
+.wbar:nth-child(4){height:10px;animation-delay:.15s}
+.wbar:nth-child(5){height:18px;animation-delay:.08s}
+.wbar:nth-child(6){height:8px;animation-delay:.2s}
+.wbar:nth-child(7){height:16px;animation-delay:.03s}
+.wbar:nth-child(8){height:6px;animation-delay:.12s}
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(2.4)}}
+.voice-transcript{width:100%;font-size:12px;color:var(--ink2);text-align:center;min-height:16px;font-style:italic;font-weight:500}
+
+/* SHELL must be relative for splash positioning */
+.shell{position:relative}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SPLASH SCREEN -->
+<div class="splash" id="splash">
+  <div class="splash-logo">
+    <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F22F46"/><circle cx="11" cy="11" r="3" fill="white"/><circle cx="21" cy="11" r="3" fill="white"/><circle cx="11" cy="21" r="3" fill="white"/><circle cx="21" cy="21" r="3" fill="white"/></svg>
+    <div class="splash-logo-text">Twilio <span>Conversations</span></div>
+  </div>
+  <div class="splash-eyebrow">Click each block to see how the platform fits together</div>
+
+  <div class="lego-stage">
+    <!-- CHANNELS -->
+    <div class="ch-row">
+      <div class="ch-pip" id="pip-chat"><span class="pip-dot"></span>Web Chat</div>
+      <div class="ch-pip" id="pip-sms"><span class="pip-dot"></span>SMS</div>
+      <div class="ch-pip" id="pip-voice"><span class="pip-dot"></span>Voice</div>
+      <div class="ch-pip" id="pip-wa"><span class="pip-dot"></span>WhatsApp</div>
+    </div>
+
+    <!-- LEGO BRICKS + PIPES -->
+    <div class="lego-track">
+      <div class="lego orch" id="lb-orch" onclick="clickLego('orch')">
+        <div class="lego-studs"><div class="lego-stud"></div><div class="lego-stud"></div></div>
+        <div class="lego-icon">⚡</div>
+        <div class="lego-name">Orchestrator</div>
+        <div class="lego-sub">Routes every message<br>to the right handler</div>
+      </div>
+      <div class="pipe" id="pipe1"></div>
+      <div class="lego mem" id="lb-mem" onclick="clickLego('mem')">
+        <div class="lego-studs"><div class="lego-stud"></div><div class="lego-stud"></div></div>
+        <div class="lego-icon">🧠</div>
+        <div class="lego-name">Memory</div>
+        <div class="lego-sub">Context travels with<br>the customer always</div>
+      </div>
+      <div class="pipe" id="pipe2"></div>
+      <div class="lego intel" id="lb-intel" onclick="clickLego('intel')">
+        <div class="lego-studs"><div class="lego-stud"></div><div class="lego-stud"></div></div>
+        <div class="lego-icon">✨</div>
+        <div class="lego-name">Intelligence</div>
+        <div class="lego-sub">Sentiment, intent &amp;<br>signals in real time</div>
+      </div>
+    </div>
+
+    <!-- DESCRIPTION -->
+    <div class="lego-desc" id="lego-desc">
+      <div class="desc-chip" id="desc-chip">Click a block to explore</div>
+    </div>
+  </div>
+
+  <div class="lego-progress">
+    <div class="prog-dot" id="pd-orch"></div>
+    <div class="prog-dot" id="pd-mem"></div>
+    <div class="prog-dot" id="pd-intel"></div>
+  </div>
+  <button class="splash-cta" id="splash-cta" onclick="dismissSplash()">Try the Live Demo →</button>
+  <div class="splash-tagline" id="splash-tagline">Type anything · Switch channels · Watch memory carry through</div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <svg viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="13" fill="#F22F46"/><circle cx="9" cy="9" r="2.5" fill="white"/><circle cx="17" cy="9" r="2.5" fill="white"/><circle cx="9" cy="17" r="2.5" fill="white"/><circle cx="17" cy="17" r="2.5" fill="white"/></svg>
+  </div>
+  <div class="sb-icon active" title="Conversations">💬</div>
+  <div class="sb-icon" title="Contacts">👥</div>
+  <div class="sb-icon" title="Analytics">📊</div>
+  <div class="sb-icon" title="Flows">🔀</div>
+  <div class="sb-icon" style="margin-top:auto" title="Settings">⚙️</div>
+</div>
+
+<!-- CONSOLE -->
+<div class="console">
+  <div class="topbar">
+    <div class="topbar-title">Conversations – Live Demo</div>
+    <button class="config-btn" id="config-btn" onclick="openCreds()" title="Configure API Keys">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.49 2.04a1.75 1.75 0 0 0-2.98 0L7.83 3.4a.25.25 0 0 1-.22.13H6a1.75 1.75 0 0 0-1.75 1.75v1.61a.25.25 0 0 1-.13.22L2.76 8.2a1.75 1.75 0 0 0 0 2.98l1.36.69c.09.04.13.13.13.22v1.61A1.75 1.75 0 0 0 6 15.45h1.61c.09 0 .18.05.22.13l.69 1.36a1.75 1.75 0 0 0 2.98 0l.69-1.36a.25.25 0 0 1 .22-.13H14a1.75 1.75 0 0 0 1.75-1.75v-1.61c0-.09.05-.18.13-.22l1.36-.69a1.75 1.75 0 0 0 0-2.98l-1.36-.69a.25.25 0 0 1-.13-.22V5.28A1.75 1.75 0 0 0 14 3.53h-1.61a.25.25 0 0 1-.22-.13l-.68-1.36zM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="currentColor"/></svg>
+      <span id="config-btn-label">Configure Keys</span>
+    </button>
+    <span id="mode-badge" class="topbar-badge mock">Demo Presets</span>
+  </div>
+
+  <div class="content">
+    <!-- LEFT: CONVERSATION -->
+    <div class="conv-pane">
+      <!-- CHANNEL TABS -->
+      <div class="ch-tabs">
+        <div class="ch-tab active engaged" id="tab-chat" onclick="setActiveTab('chat')">
+          <span class="ch-dot"></span>💬 Web Chat
+        </div>
+        <div class="ch-tab" id="tab-sms" onclick="setActiveTab('sms')">
+          <span class="ch-dot"></span>📱 SMS
+        </div>
+        <div class="ch-tab" id="tab-voice" onclick="setActiveTab('voice')">
+          <span class="ch-dot"></span>📞 Voice
+        </div>
+        <div class="ch-tab" id="tab-whatsapp" onclick="setActiveTab('whatsapp')">
+          <span class="ch-dot"></span>🟢 WhatsApp
+        </div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="input-row" id="input-row">
+        <input class="chat-in" id="chat-input" placeholder="Type a message on any channel…" onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" id="send-btn" onclick="sendMsg()">Send</button>
+      </div>
+
+      <div class="voice-row" id="voice-row">
+        <div class="waveform" id="waveform">
+          <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+          <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+          <div class="wbar"></div><div class="wbar"></div>
+        </div>
+        <div class="mic-wrap">
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Hold to speak">
+            <svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-7 8a1 1 0 0 1 1 1 6 6 0 0 0 12 0 1 1 0 0 1 2 0 8 8 0 0 1-7 7.93V21h2a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2h2v-2.07A8 8 0 0 1 4 12a1 1 0 0 1 1-1z"/></svg>
+          </button>
+          <div class="mic-hint" id="mic-hint">Tap to speak</div>
+        </div>
+        <div class="voice-transcript" id="voice-transcript"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: INTEL PANEL -->
+    <div class="side-pane">
+
+      <!-- CHANNEL STATUS -->
+      <div class="side-section">
+        <div class="side-title">Active Channels</div>
+        <div class="ch-status-list">
+          <div class="ch-status engaged" id="cs-chat">
+            <div class="cs-dot"></div>
+            <div class="cs-lbl">💬 Web Chat</div>
+            <div class="cs-time" id="ct-chat">now</div>
+          </div>
+          <div class="ch-status" id="cs-sms">
+            <div class="cs-dot"></div>
+            <div class="cs-lbl">📱 SMS</div>
+            <div class="cs-time" id="ct-sms">—</div>
+          </div>
+          <div class="ch-status" id="cs-voice">
+            <div class="cs-dot"></div>
+            <div class="cs-lbl">📞 Voice</div>
+            <div class="cs-time" id="ct-voice">—</div>
+          </div>
+          <div class="ch-status" id="cs-whatsapp">
+            <div class="cs-dot"></div>
+            <div class="cs-lbl">🟢 WhatsApp</div>
+            <div class="cs-time" id="ct-whatsapp">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMORY -->
+      <div class="side-section">
+        <div class="side-title">Memory</div>
+        <div class="mem-grid">
+          <div class="mem-node" id="mn-identity">👤 Identity<div class="nl">Recognized</div></div>
+          <div class="mem-node" id="mn-observations">📋 Observations<div class="nl">What was said</div></div>
+          <div class="mem-node" id="mn-summary">💡 Summary<div class="nl">Distilled context</div></div>
+          <div class="mem-node" id="mn-intent">🎯 Intent<div class="nl">Predicted need</div></div>
+          <div class="mem-node" id="mn-context">🔔 Context<div class="nl">Active situation</div></div>
+        </div>
+      </div>
+
+      <!-- SCORES -->
+      <div class="side-section">
+        <div class="side-title">Real-time Intelligence</div>
+        <div class="score-row"><div class="score-hd"><span>Sentiment</span><span class="score-val" id="sv1">—</span></div><div class="track"><div class="fill" id="sf1" style="background:var(--green)"></div></div></div>
+        <div class="score-row"><div class="score-hd"><span>Intent Confidence</span><span class="score-val" id="sv2">—</span></div><div class="track"><div class="fill" id="sf2" style="background:var(--blue)"></div></div></div>
+        <div class="score-row"><div class="score-hd"><span>Resolution Likelihood</span><span class="score-val" id="sv3">—</span></div><div class="track"><div class="fill" id="sf3" style="background:#7C3AED"></div></div></div>
+        <div class="score-row"><div class="score-hd"><span>Escalation Risk</span><span class="score-val" id="sv4">—</span></div><div class="track"><div class="fill" id="sf4" style="background:var(--red)"></div></div></div>
+      </div>
+
+      <!-- SIGNALS -->
+      <div class="side-section">
+        <div class="side-title">Live Signal Log</div>
+        <div class="sig-log" id="sig-log"></div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /.console -->
+</div><!-- /.shell -->
+
+<!-- SETUP WIZARD OVERLAY -->
+<div class="wizard-overlay" id="wizard-overlay">
+  <div class="wizard-modal">
+    <div class="wiz-header">
+      <div class="wiz-logo">
+        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#F22F46"/><circle cx="9.5" cy="9.5" r="2.5" fill="white"/><circle cx="18.5" cy="9.5" r="2.5" fill="white"/><circle cx="9.5" cy="18.5" r="2.5" fill="white"/><circle cx="18.5" cy="18.5" r="2.5" fill="white"/></svg>
+        <div class="wiz-logo-text">Twilio Conversations</div>
+      </div>
+      <div class="wiz-title">Set up your live demo<br>in 3 steps</div>
+      <div class="wiz-sub">Mock mode works immediately — add keys to power it with real Claude + Twilio channels.</div>
+      <div class="wiz-steps-bar">
+        <div class="wiz-step-pip active" id="wsp-0"></div>
+        <div class="wiz-step-pip" id="wsp-1"></div>
+        <div class="wiz-step-pip" id="wsp-2"></div>
+      </div>
+    </div>
+    <div class="wiz-body">
+
+      <!-- STEP 1: Anthropic -->
+      <div class="wiz-step active" id="wiz-step-0">
+        <div class="wiz-step-label">Step 1 of 3</div>
+        <div class="wiz-step-title">Connect Claude AI</div>
+        <div class="wiz-step-desc">Claude powers live responses, memory analysis, and real-time signals. Get a key free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys.</div>
+        <div class="wiz-field">
+          <label>Anthropic API Key</label>
+          <input type="password" id="wiz-anthropic" placeholder="sk-ant-api03-…" oninput="wizMark(this)" autocomplete="off">
+          <div class="wiz-hint">🔒 Stored only in your browser — never sent anywhere except your own backend.</div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Twilio -->
+      <div class="wiz-step" id="wiz-step-1">
+        <div class="wiz-step-label">Step 2 of 3</div>
+        <div class="wiz-step-title">Connect Twilio</div>
+        <div class="wiz-step-desc">Enables real SMS, Voice, and WhatsApp on your provisioned number. Find these at <a href="https://console.twilio.com" target="_blank">console.twilio.com</a> → Account Info.</div>
+        <div class="wiz-field">
+          <label>Account SID</label>
+          <input type="text" id="wiz-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" oninput="wizMark(this)" autocomplete="off">
+        </div>
+        <div class="wiz-field">
+          <label>Auth Token</label>
+          <input type="password" id="wiz-token" placeholder="your auth token" oninput="wizMark(this)" autocomplete="off">
+        </div>
+        <div class="wiz-field">
+          <label>Twilio Phone Number <span style="font-weight:400;color:var(--ink3)">(purchased number)</span></label>
+          <input type="tel" id="wiz-twilio-num" placeholder="+1 888 555 0147" oninput="wizMark(this)">
+          <div class="wiz-hint">📞 Leave blank to skip real inbound channels for now.</div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Test number + finish -->
+      <div class="wiz-step" id="wiz-step-2">
+        <div class="wiz-step-label">Step 3 of 3</div>
+        <div class="wiz-step-title">Your phone number</div>
+        <div class="wiz-step-desc">Optional — we'll send a test SMS to confirm end-to-end delivery works. Include country code.</div>
+        <div class="wiz-field">
+          <label>Your mobile number <span style="font-weight:400;color:var(--ink3)">(optional)</span></label>
+          <input type="tel" id="wiz-phone" placeholder="+1 415 555 0100" oninput="wizMark(this)">
+        </div>
+        <div class="wiz-optional-row">
+          <div class="wiz-opt-icon">⚡</div>
+          <p><strong>Skip this and go straight to mock mode.</strong> You can add your number later via Configure Keys in the top bar.</p>
+        </div>
+        <div id="wiz-connecting" style="display:none;font-size:13px;color:var(--ink2);text-align:center;padding:8px 0">
+          Connecting to backend…
+        </div>
+        <div id="wiz-success-block" class="wiz-success" style="display:none">
+          <div class="wiz-success-icon">🎉</div>
+          <h3>You're live!</h3>
+          <p>Claude is connected. Real SMS, Voice, and WhatsApp are ready on your Twilio number.</p>
+          <div class="wiz-chips">
+            <span class="wiz-chip blue">⚡ Orchestration</span>
+            <span class="wiz-chip purple">🧠 Memory</span>
+            <span class="wiz-chip green">✨ Intelligence</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="wiz-footer">
+      <button class="wiz-skip" id="wiz-skip-btn" onclick="wizSkip()">Skip — run in mock mode</button>
+      <button class="wiz-back" id="wiz-back-btn" style="display:none" onclick="wizBack()">← Back</button>
+      <div class="wiz-status" id="wiz-status"></div>
+      <button class="wiz-next" id="wiz-next-btn" onclick="wizNext()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREDENTIALS MODAL -->
+<div class="creds-overlay" id="creds-overlay" onclick="if(event.target===this)closeCreds()">
+  <div class="creds-modal">
+    <div class="creds-head">
+      <div class="creds-head-icon">🔑</div>
+      <div class="creds-head-title">Configure Your Keys</div>
+      <button class="creds-close" onclick="closeCreds()">×</button>
+    </div>
+    <div class="creds-body">
+      <div class="creds-section">
+        <div class="creds-section-title">Anthropic</div>
+        <div class="field">
+          <label>API Key</label>
+          <input type="password" id="f-anthropic" placeholder="sk-ant-api03-…" oninput="markFilled(this)">
+          <div class="hint">From <strong>console.anthropic.com</strong> → API Keys</div>
+        </div>
+      </div>
+      <div class="creds-section">
+        <div class="creds-section-title">Twilio</div>
+        <div class="field">
+          <label>Account SID</label>
+          <input type="text" id="f-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" oninput="markFilled(this)">
+        </div>
+        <div class="field">
+          <label>Auth Token</label>
+          <input type="password" id="f-token" placeholder="your auth token" oninput="markFilled(this)">
+          <div class="hint">From <strong>console.twilio.com</strong> → Account Info</div>
+        </div>
+        <div class="field">
+          <label>Your Phone Number <span style="font-weight:400;color:var(--ink2)">(to receive SMS/WhatsApp)</span></label>
+          <input type="tel" id="f-phone" placeholder="+1 415 555 0100" oninput="markFilled(this)">
+          <div class="hint">Include country code — we'll send a test message when you save</div>
+        </div>
+        <div class="field">
+          <label>Twilio Phone Number <span style="font-weight:400;color:var(--ink2)">(your purchased number)</span></label>
+          <input type="tel" id="f-twilio-num" placeholder="+1 888 555 0147" oninput="markFilled(this)">
+        </div>
+      </div>
+    </div>
+    <div class="creds-footer">
+      <div class="creds-status" id="creds-status">Keys are stored locally in your browser only.</div>
+      <button class="btn-clear" onclick="clearCreds()">Clear</button>
+      <button class="btn-save" onclick="saveCreds()">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LABELS={chat:'Web Chat',sms:'SMS',voice:'Voice',whatsapp:'WhatsApp'};
+const ICONS ={chat:'💬',sms:'📱',voice:'📞',whatsapp:'🟢'};
+const MEM_MAP={identity:'mn-identity',observations:'mn-observations',summary:'mn-summary',intent:'mn-intent',context:'mn-context',
+  // legacy aliases so old mock node names still light up
+  history:'mn-observations',preferences:'mn-summary',activity:'mn-context'};
+
+const st={channel:'chat',sessionId:null,msgCount:0,memLit:new Set(),engaged:new Set(['chat']),useServer:true};
+
+// ── Render ────────────────────────────────────────────────────
+function addBubble(role,text,ch){
+  const el=document.getElementById('messages');
+  const d=document.createElement('div');
+  d.className=`msg from-${role}`;
+  const icon=role==='agent'?(ICONS[ch]||'🤖'):'👤';
+  d.innerHTML=`<div class="avatar">${icon}</div><div><div class="bubble">${text}</div><div class="msg-time">${LABELS[ch]||ch} · ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function addSysMsg(text){
+  const el=document.getElementById('messages');
+  const d=document.createElement('div');
+  d.className='sys-msg'; d.textContent=text;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+
+function addChannelBanner(ch){
+  const el=document.getElementById('messages');
+  const cfg={
+    chat:  {icon:'💬', label:'Web Chat'},
+    sms:   {icon:'📱', label:'SMS'},
+    voice: {icon:'📞', label:'Voice'},
+    whatsapp:{icon:'🟢',label:'WhatsApp'},
+  };
+  const c=cfg[ch];
+  const d=document.createElement('div');
+  d.className='ch-switch-banner';
+  d.innerHTML=`
+    <div class="csb-icon">${c.icon}</div>
+    <div class="csb-body">
+      <div class="csb-title">Switched to ${c.label} — same session</div>
+      <div class="csb-pills">
+        <span class="csb-pill mem">🧠 Memory created</span>
+        <span class="csb-pill orch">⚡ Context carried</span>
+      </div>
+    </div>`;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+function showTyping(){
+  const el=document.getElementById('messages');
+  const d=document.createElement('div');
+  d.className='msg from-agent'; d.id='typing-ind';
+  d.innerHTML=`<div class="avatar">🤖</div><div class="bubble typing-bubble"><span class="dot-a"></span><span class="dot-a"></span><span class="dot-a"></span></div>`;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function hideTyping(){document.getElementById('typing-ind')?.remove();}
+
+function lightMem(nodes){
+  (nodes||[]).forEach(n=>{
+    const id=MEM_MAP[n]; if(!id) return;
+    st.memLit.add(id); document.getElementById(id)?.classList.add('lit');
+  });
+}
+function setScores(s){
+  [{f:'sf1',v:'sv1',val:s.sentiment,lbl:s.sentiment>70?'Positive':s.sentiment>40?'Neutral':'Negative',c:'var(--green)'},
+   {f:'sf2',v:'sv2',val:s.intent_confidence,lbl:s.intent_confidence+'%',c:'var(--blue)'},
+   {f:'sf3',v:'sv3',val:s.resolution_likelihood,lbl:s.resolution_likelihood+'%',c:'#7C3AED'},
+   {f:'sf4',v:'sv4',val:s.escalation_risk,lbl:s.escalation_risk+'%',c:'var(--red)'}
+  ].forEach(p=>{
+    document.getElementById(p.f).style.width=p.val+'%';
+    document.getElementById(p.v).textContent=p.lbl;
+  });
+}
+function addSig(icon,tag,msg){
+  const log=document.getElementById('sig-log');
+  const d=document.createElement('div'); d.className='sig';
+  d.innerHTML=`<div>${icon}</div><div><div class="sig-tag ${tag}">${tag.toUpperCase()}</div>${msg}</div>`;
+  log.prepend(d); setTimeout(()=>d.classList.add('show'),30);
+  while(log.children.length>10) log.removeChild(log.lastChild);
+}
+
+// ── Channel UI ────────────────────────────────────────────────
+function setActiveTab(ch){
+  st.channel=ch;
+  document.querySelectorAll('.ch-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+ch)?.classList.add('active');
+
+  // toggle voice UI vs text input
+  const isVoice = ch==='voice';
+  document.getElementById('input-row').style.display = isVoice ? 'none' : 'flex';
+  document.getElementById('voice-row').classList.toggle('active', isVoice);
+  if (!isVoice) stopMic();
+
+  // mark as engaged
+  if(!st.engaged.has(ch) && st.msgCount>0){
+    st.engaged.add(ch);
+    document.getElementById('tab-'+ch)?.classList.add('engaged');
+    document.getElementById('cs-'+ch)?.classList.add('engaged');
+    document.getElementById('ct-'+ch).textContent='just now';
+    addChannelBanner(ch);
+    addSig('🔀','orch',`Channel: ${LABELS[ch]} · Session ID preserved · No re-auth`);
+    st.memLit.forEach(id=>document.getElementById(id)?.classList.add('lit'));
+  } else if(st.engaged.has(ch) && ch !== 'chat' && st.msgCount>0){
+    addChannelBanner(ch);
+  }
+}
+
+// ── Mic / Voice ───────────────────────────────────────────────
+let micActive=false, micRecog=null, micSim=null;
+
+function toggleMic(){
+  micActive ? stopMic() : startMic();
+}
+
+function startMic(){
+  micActive=true;
+  const btn=document.getElementById('mic-btn');
+  const hint=document.getElementById('mic-hint');
+  const wf=document.getElementById('waveform');
+  btn.classList.add('recording');
+  hint.textContent='Listening…';
+  wf.classList.add('visible');
+
+  // Try real Web Speech API
+  if('SpeechRecognition' in window||'webkitSpeechRecognition' in window){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    micRecog=new SR();
+    micRecog.lang='en-US'; micRecog.interimResults=true; micRecog.continuous=false;
+    micRecog.onresult=e=>{
+      const txt=Array.from(e.results).map(r=>r[0].transcript).join('');
+      document.getElementById('voice-transcript').textContent=txt;
+      if(e.results[e.results.length-1].isFinal){
+        stopMic();
+        if(txt.trim()){
+          document.getElementById('chat-input').value=txt.trim();
+          sendMsg();
+        }
+      }
+    };
+    micRecog.onerror=()=>simulateSpeech();
+    micRecog.onend=()=>stopMic();
+    micRecog.start();
+  } else {
+    simulateSpeech();
+  }
+}
+
+function simulateSpeech(){
+  // Fallback: simulate a spoken message after 2s
+  const samples=["I need help with my account","Can you check my order status?","I'd like to upgrade my plan","I'm having trouble logging in"];
+  const chosen=samples[Math.floor(Math.random()*samples.length)];
+  let i=0;
+  const el=document.getElementById('voice-transcript');
+  micSim=setInterval(()=>{
+    el.textContent=chosen.slice(0,++i);
+    if(i>=chosen.length){ clearInterval(micSim); setTimeout(()=>{ stopMic(); document.getElementById('chat-input').value=chosen; sendMsg(); },400); }
+  },40);
+}
+
+function stopMic(){
+  micActive=false;
+  clearInterval(micSim);
+  if(micRecog){ try{micRecog.stop();}catch(e){} micRecog=null; }
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('mic-hint').textContent='Tap to speak';
+  document.getElementById('waveform').classList.remove('visible');
+  document.getElementById('voice-transcript').textContent='';
+}
+
+function setBadge(mock){
+  const b=document.getElementById('mode-badge');
+  b.className='topbar-badge '+(mock?'mock':'live');
+  b.textContent=mock?'Demo Presets':'✅ Live — Claude + Twilio';
+}
+
+// ── Server / Mock ─────────────────────────────────────────────
+async function callServer(text){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:text,session_id:st.sessionId,channel:st.channel})});
+  if(!r.ok) throw new Error('err');
+  return r.json();
+}
+
+const MOCK=[
+  {kw:[],reply:"Hi there! I'm here to help — what can I assist you with today?",scores:{sentiment:55,intent_confidence:40,resolution_likelihood:50,escalation_risk:10},nodes:['identity'],sigs:[{i:'🔵',t:'orch',m:'Session initialized · Identity lookup started'}]},
+  {kw:['order','track','package','shipping','delivery'],reply:"I can help with that. Let me pull up your details right away.",scores:{sentiment:62,intent_confidence:85,resolution_likelihood:70,escalation_risk:12},nodes:['observations','context','intent'],sigs:[{i:'🧠',t:'mem',m:'Intent: Order tracking · Observations retrieved'},{i:'📊',t:'intel',m:'Confidence 85% · Self-serve flow selected'}]},
+  {kw:['cancel','return','refund'],reply:"Understood — I've already loaded your history so you won't need to repeat anything.",scores:{sentiment:38,intent_confidence:90,resolution_likelihood:68,escalation_risk:45},nodes:['observations','summary','intent'],sigs:[{i:'⚠️',t:'alert',m:'Churn signal detected · Retention flow queued'},{i:'🧠',t:'mem',m:'Observations loaded · Summary applied'}]},
+  {kw:['frustrated','angry','terrible','broken','useless','worst'],reply:"I'm really sorry. I'm escalating this now so the right person handles it personally.",scores:{sentiment:16,intent_confidence:96,resolution_likelihood:52,escalation_risk:88},nodes:['identity','observations','context','summary'],sigs:[{i:'🔴',t:'alert',m:'High frustration · Human escalation triggered'},{i:'📊',t:'intel',m:'Sentiment: critical · Empathy response applied'}]},
+  {kw:['thanks','thank you','great','perfect','resolved','awesome'],reply:"So glad I could help! 😊 Is there anything else I can assist with?",scores:{sentiment:93,intent_confidence:72,resolution_likelihood:96,escalation_risk:4},nodes:['intent','summary'],sigs:[{i:'✅',t:'intel',m:'Sentiment recovered · CSAT prediction: 4.8/5'},{i:'🧠',t:'mem',m:'Outcome stored · Summary updated'}]},
+  {kw:['account','password','login','profile','email'],reply:"I've already verified your identity. What would you like to update?",scores:{sentiment:65,intent_confidence:88,resolution_likelihood:82,escalation_risk:10},nodes:['identity','summary'],sigs:[{i:'🔵',t:'orch',m:'Identity verified · Account tools unlocked'}]},
+  {kw:['price','plan','upgrade','cost'],reply:"Based on your usage history, I can walk you through the best options for you.",scores:{sentiment:70,intent_confidence:84,resolution_likelihood:76,escalation_risk:8},nodes:['observations','intent','summary'],sigs:[{i:'📊',t:'intel',m:'Intent: upgrade · Offer personalized'},{i:'🧠',t:'mem',m:'Observations applied to recommendation'}]},
+];
+function mockReply(text){
+  const t=text.toLowerCase();
+  for(const f of MOCK.slice(1)){ if(f.kw.some(k=>t.includes(k))) return toData(f); }
+  return {reply:"I'm on it — let me look into that for you.",scores:{sentiment:60,intent_confidence:58,resolution_likelihood:60,escalation_risk:18},memory_nodes:['context','observations'],signals:[{i:'🔵',t:'orch',m:'Processing · Context updated'}],mock:true};
+}
+function toData(f){return{reply:f.reply,scores:f.scores,memory_nodes:f.nodes,signals:f.sigs.map(s=>({icon:s.i,tag:s.t,msg:s.m})),mock:true};}
+
+// ── Send ──────────────────────────────────────────────────────
+async function sendMsg(){
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim(); if(!text) return;
+  inp.value=''; inp.disabled=true; document.getElementById('send-btn').disabled=true;
+  st.msgCount++;
+  addBubble('user',text,st.channel);
+  showTyping();
+  let data;
+  try{
+    if(st.useServer){
+      data=await callServer(text);
+      if(!st.sessionId) st.sessionId=data.session_id;
+      setBadge(!!data.mock);
+    } else throw 0;
+  }catch(e){
+    if(st.useServer){ st.useServer=false; setBadge(true); }
+    data=st.msgCount===1?toData(MOCK[0]):mockReply(text);
+  }
+  hideTyping();
+  addBubble('agent',data.reply,st.channel);
+  lightMem(data.memory_nodes||[]);
+  setScores(data.scores||{sentiment:60,intent_confidence:60,resolution_likelihood:60,escalation_risk:20});
+  (data.signals||[]).forEach(s=>addSig(s.icon||s.i,s.tag||s.t,s.msg||s.m));
+  inp.disabled=false; document.getElementById('send-btn').disabled=false; inp.focus();
+}
+
+// ── Credentials modal ─────────────────────────────────────────
+const KEYS={anthropic:'demo_anthropic_key',sid:'demo_twilio_sid',token:'demo_twilio_token',phone:'demo_customer_phone',twilioNum:'demo_twilio_num'};
+
+function loadCreds(){
+  return{
+    anthropic: localStorage.getItem(KEYS.anthropic)||'',
+    sid:       localStorage.getItem(KEYS.sid)||'',
+    token:     localStorage.getItem(KEYS.token)||'',
+    phone:     localStorage.getItem(KEYS.phone)||'',
+    twilioNum: localStorage.getItem(KEYS.twilioNum)||'',
+  };
+}
+function hasCreds(){const c=loadCreds(); return !!(c.anthropic&&c.sid&&c.token);}
+
+function openCreds(){
+  const c=loadCreds();
+  document.getElementById('f-anthropic').value=c.anthropic;
+  document.getElementById('f-sid').value=c.sid;
+  document.getElementById('f-token').value=c.token;
+  document.getElementById('f-phone').value=c.phone;
+  document.getElementById('f-twilio-num').value=c.twilioNum;
+  ['f-anthropic','f-sid','f-token','f-phone','f-twilio-num'].forEach(id=>{
+    const el=document.getElementById(id); if(el.value) el.classList.add('has-val');
+  });
+  document.getElementById('creds-status').textContent='Keys are stored locally in your browser only.';
+  document.getElementById('creds-status').className='creds-status';
+  document.getElementById('creds-overlay').classList.add('open');
+}
+function closeCreds(){document.getElementById('creds-overlay').classList.remove('open');}
+function markFilled(el){el.classList.toggle('has-val',el.value.length>0);}
+
+async function saveCreds(){
+  const vals={
+    anthropic: document.getElementById('f-anthropic').value.trim(),
+    sid:       document.getElementById('f-sid').value.trim(),
+    token:     document.getElementById('f-token').value.trim(),
+    phone:     document.getElementById('f-phone').value.trim(),
+    twilioNum: document.getElementById('f-twilio-num').value.trim(),
+  };
+  const statusEl=document.getElementById('creds-status');
+  if(!vals.anthropic||!vals.sid||!vals.token){
+    statusEl.textContent='Anthropic key, Account SID, and Auth Token are required.';
+    statusEl.className='creds-status err'; return;
+  }
+  statusEl.textContent='Saving…'; statusEl.className='creds-status';
+  // Push to server
+  try{
+    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(vals)});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'Server error');
+    Object.entries(KEYS).forEach(([k,sk])=>localStorage.setItem(sk,vals[k]||''));
+    updateCredsUI(true);
+    statusEl.textContent='✅ Connected! '+(vals.phone?'Test message sent to '+vals.phone:'');
+    statusEl.className='creds-status ok';
+    st.useServer=true; setBadge(false);
+    setTimeout(closeCreds,1800);
+  }catch(e){
+    // Server unreachable — save locally, flip to client mock note
+    Object.entries(KEYS).forEach(([k,sk])=>localStorage.setItem(sk,vals[k]||''));
+    updateCredsUI(true);
+    statusEl.textContent='⚠️ Server offline — keys saved locally, running in mock mode.';
+    statusEl.className='creds-status';
+    setTimeout(closeCreds,2000);
+  }
+}
+
+function clearCreds(){
+  Object.values(KEYS).forEach(k=>localStorage.removeItem(k));
+  ['f-anthropic','f-sid','f-token','f-phone','f-twilio-num'].forEach(id=>{
+    const el=document.getElementById(id); el.value=''; el.classList.remove('has-val');
+  });
+  updateCredsUI(false);
+  document.getElementById('creds-status').textContent='Keys cleared.';
+  document.getElementById('creds-status').className='creds-status';
+  st.useServer=true;
+}
+
+function updateCredsUI(configured){
+  const btn=document.getElementById('config-btn');
+  document.getElementById('config-btn-label').textContent=configured?'Keys Configured':'Configure Keys';
+  btn.className='config-btn'+(configured?' configured':'');
+}
+
+// ── Restore creds state on load ───────────────────────────────
+if(hasCreds()){
+  updateCredsUI(true);
+  // Push saved creds to server so live mode activates without re-entering them
+  (async()=>{
+    const c=loadCreds();
+    try{
+      const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({anthropic:c.anthropic,sid:c.sid,token:c.token,twilioNum:c.twilioNum,phone:''})});
+      const d=await r.json();
+      if(d.ok){ st.useServer=true; setBadge(false); }
+    }catch(e){ /* server not running — stays in mock mode */ }
+  })();
+}
+
+// ── Splash lego interaction ───────────────────────────────────
+const LEGO_COPY = {
+  orch: {
+    desc: '⚡ Routes any message — SMS, voice, chat — to the right handler instantly',
+    cls: 'active-orch',
+    channels: ['pip-chat','pip-sms','pip-voice','pip-wa'],
+    pipe: null
+  },
+  mem: {
+    desc: '🧠 Context travels with the customer — across every channel, always',
+    cls: 'active-mem',
+    channels: ['pip-chat','pip-sms'],
+    pipe: 'pipe1'
+  },
+  intel: {
+    desc: '✨ Sentiment, intent & escalation risk — live as the conversation unfolds',
+    cls: 'active-intel',
+    channels: [],
+    pipe: 'pipe2'
+  },
+  all: {
+    desc: '🔗 Together: every conversation is orchestrated, remembered, and understood',
+    cls: 'active-all',
+    channels: ['pip-chat','pip-sms','pip-voice','pip-wa'],
+    pipe: null
+  }
+};
+
+let legoState = {orch:false, mem:false, intel:false};
+let autoTimer = null;
+
+function clickLego(name) {
+  legoState[name] = !legoState[name];
+  const el = document.getElementById('lb-'+name);
+  el.classList.toggle('active', legoState[name]);
+  if (legoState[name]) el.classList.add('snapped');
+  setTimeout(()=>el.classList.remove('snapped'), 380);
+
+  // flow dot on pipe
+  const cfg = LEGO_COPY[name];
+  if (cfg.pipe && legoState[name]) {
+    const p = document.getElementById(cfg.pipe);
+    p.classList.remove('flowing');
+    void p.offsetWidth;
+    p.classList.add('flowing');
+    setTimeout(()=>p.classList.remove('flowing'), 750);
+  }
+
+  updateLegoUI();
+}
+
+function updateLegoUI() {
+  const all3 = legoState.orch && legoState.mem && legoState.intel;
+  const chip = document.getElementById('desc-chip');
+  const desc = document.getElementById('lego-desc');
+
+  // pipe lighting
+  document.getElementById('pipe1').classList.toggle('lit-orch', legoState.orch || legoState.mem);
+  document.getElementById('pipe2').classList.toggle('lit-mem', legoState.mem || legoState.intel);
+
+  // desc chip
+  chip.className = 'desc-chip';
+  desc.classList.add('show');
+  if (all3) {
+    chip.textContent = LEGO_COPY.all.desc;
+    chip.classList.add(LEGO_COPY.all.cls);
+  } else if (legoState.intel) {
+    chip.textContent = LEGO_COPY.intel.desc; chip.classList.add(LEGO_COPY.intel.cls);
+  } else if (legoState.mem) {
+    chip.textContent = LEGO_COPY.mem.desc; chip.classList.add(LEGO_COPY.mem.cls);
+  } else if (legoState.orch) {
+    chip.textContent = LEGO_COPY.orch.desc; chip.classList.add(LEGO_COPY.orch.cls);
+  } else {
+    chip.textContent = 'Click to explore'; desc.classList.remove('show');
+  }
+
+  // progress dots
+  ['orch','mem','intel'].forEach(k =>
+    document.getElementById('pd-'+k).classList.toggle('done', legoState[k])
+  );
+
+  // show CTA once all three clicked
+  if (all3) {
+    setTimeout(()=>{
+      document.getElementById('splash-cta').classList.add('show');
+      document.getElementById('splash-tagline').classList.add('show');
+    }, 400);
+  }
+}
+
+// Auto-sequence: click each brick one by one so it's self-explanatory
+(function autoPlay(){
+  const seq = ['orch','mem','intel'];
+  let i = 0;
+  // show CTA after a delay regardless (in case user skips)
+  autoTimer = setTimeout(()=>{
+    ['orch','mem','intel'].forEach(k => document.getElementById('pd-'+k).classList.add('done'));
+    document.getElementById('splash-cta').classList.add('show');
+    document.getElementById('splash-tagline').classList.add('show');
+  }, 3800);
+  function next(){
+    if(i >= seq.length) return;
+    clickLego(seq[i++]);
+    if(i < seq.length) setTimeout(next, 900);
+  }
+  setTimeout(next, 700);
+})();
+
+function dismissSplash(){
+  clearTimeout(autoTimer);
+  document.getElementById('splash').classList.add('out');
+  setTimeout(()=>{ document.getElementById('splash').style.display='none'; },520);
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+showTyping();
+(async()=>{
+  let data;
+  try{
+    data=await callServer('__init__');
+    if(!st.sessionId) st.sessionId=data.session_id;
+    setBadge(data.mock);
+  }catch(e){
+    st.useServer=false; data=toData(MOCK[0]); setBadge(true);
+  }
+  hideTyping();
+  addBubble('agent',data.reply,'chat');
+  lightMem(data.memory_nodes||[]);
+  setScores(data.scores||{sentiment:55,intent_confidence:40,resolution_likelihood:50,escalation_risk:10});
+  (data.signals||[]).forEach(s=>addSig(s.icon||s.i,s.tag||s.t,s.msg||s.m));
+})();
+
+// ── Setup Wizard ───────────────────────────────────────────────
+let wizCurrentStep = 0;
+const WIZ_STEPS = 3;
+
+function wizOpen() {
+  document.getElementById('wizard-overlay').classList.add('open');
+}
+function wizClose() {
+  document.getElementById('wizard-overlay').classList.remove('open');
+}
+function wizMark(el) {
+  el.classList.toggle('has-val', el.value.length > 0);
+  document.getElementById('wiz-status').textContent = '';
+}
+function wizSetStep(n) {
+  document.querySelectorAll('.wiz-step').forEach((s,i) => s.classList.toggle('active', i===n));
+  document.querySelectorAll('.wiz-step-pip').forEach((p,i) => {
+    p.classList.toggle('done', i < n);
+    p.classList.toggle('active', i === n);
+  });
+  document.getElementById('wiz-back-btn').style.display = n > 0 ? 'inline-flex' : 'none';
+  document.getElementById('wiz-skip-btn').style.display = n < 2 ? 'inline-block' : 'none';
+  const nextBtn = document.getElementById('wiz-next-btn');
+  if (n === 2) {
+    nextBtn.textContent = 'Launch Demo →';
+    nextBtn.className = 'wiz-next green';
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.className = 'wiz-next';
+  }
+  wizCurrentStep = n;
+}
+function wizBack() { if (wizCurrentStep > 0) wizSetStep(wizCurrentStep - 1); }
+function wizSkip() {
+  // save whatever partial creds exist and close
+  wizPersistLocally();
+  wizClose();
+}
+
+async function wizNext() {
+  const statusEl = document.getElementById('wiz-status');
+  statusEl.textContent = '';
+  statusEl.className = 'wiz-status';
+
+  if (wizCurrentStep === 0) {
+    const key = document.getElementById('wiz-anthropic').value.trim();
+    if (!key) { statusEl.textContent = 'Paste your Anthropic API key to continue.'; statusEl.className = 'wiz-status err'; return; }
+    wizSetStep(1);
+
+  } else if (wizCurrentStep === 1) {
+    wizSetStep(2);
+
+  } else {
+    // Step 3 — try to connect, then launch
+    const vals = {
+      anthropic: document.getElementById('wiz-anthropic').value.trim(),
+      sid:       document.getElementById('wiz-sid').value.trim(),
+      token:     document.getElementById('wiz-token').value.trim(),
+      twilioNum: document.getElementById('wiz-twilio-num').value.trim(),
+      phone:     document.getElementById('wiz-phone').value.trim(),
+    };
+    wizPersistLocally(vals);
+
+    document.getElementById('wiz-next-btn').disabled = true;
+    document.getElementById('wiz-connecting').style.display = 'block';
+
+    try {
+      const r = await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(vals) });
+      const d = await r.json();
+      if (d.ok) {
+        st.useServer = true; setBadge(false);
+        document.getElementById('wiz-connecting').style.display = 'none';
+        document.getElementById('wiz-success-block').style.display = 'block';
+        document.getElementById('wiz-next-btn').textContent = 'Start the demo →';
+        document.getElementById('wiz-next-btn').disabled = false;
+        document.getElementById('wiz-next-btn').onclick = () => { updateCredsUI(true); wizClose(); };
+        document.getElementById('wiz-skip-btn').style.display = 'none';
+        document.getElementById('wiz-back-btn').style.display = 'none';
+        statusEl.textContent = vals.phone ? `✅ Test SMS sent to ${vals.phone}` : '✅ Backend connected';
+        statusEl.className = 'wiz-status ok';
+        return;
+      }
+    } catch (_) { /* server not running — save locally, run mock */ }
+
+    document.getElementById('wiz-connecting').style.display = 'none';
+    document.getElementById('wiz-next-btn').disabled = false;
+    statusEl.textContent = 'Server offline — keys saved, running mock mode. Start demo_server.py to go live.';
+    statusEl.className = 'wiz-status';
+    setTimeout(() => { updateCredsUI(!!(vals.anthropic||vals.sid)); wizClose(); }, 2200);
+  }
+}
+
+function wizPersistLocally(vals) {
+  if (!vals) vals = {
+    anthropic: document.getElementById('wiz-anthropic').value.trim(),
+    sid:       document.getElementById('wiz-sid').value.trim(),
+    token:     document.getElementById('wiz-token').value.trim(),
+    twilioNum: document.getElementById('wiz-twilio-num').value.trim(),
+    phone:     document.getElementById('wiz-phone').value.trim(),
+  };
+  const KM = { anthropic:'demo_anthropic_key', sid:'demo_twilio_sid', token:'demo_twilio_token', twilioNum:'demo_twilio_num', phone:'demo_customer_phone' };
+  Object.entries(KM).forEach(([k,sk]) => { if (vals[k]) localStorage.setItem(sk, vals[k]); });
+  // Pre-fill the existing creds modal too
+  if (vals.anthropic) document.getElementById('f-anthropic').value = vals.anthropic;
+  if (vals.sid)       document.getElementById('f-sid').value = vals.sid;
+  if (vals.token)     document.getElementById('f-token').value = vals.token;
+  if (vals.phone)     document.getElementById('f-phone').value = vals.phone;
+  if (vals.twilioNum) document.getElementById('f-twilio-num').value = vals.twilioNum;
+}
+
+// Show wizard on first load if no creds saved
+if (!hasCreds()) {
+  setTimeout(wizOpen, 600);
+}
+</script>
+</body>
+</html>
