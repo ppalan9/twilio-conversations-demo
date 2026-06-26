@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="Documents")
+app = Flask(__name__, static_folder=".")
 
 @app.after_request
 def add_cors(response):
@@ -467,7 +467,7 @@ def api_send_sms():
 # ── Serve demo HTML ───────────────────────────────────────────
 @app.route("/")
 def index():
-    return send_from_directory("Documents", "twilio-conv-demo.html")
+    return send_from_directory(".", "index.html")
 
 if __name__ == "__main__":
     mode = "MOCK" if MOCK_MODE else "LIVE (Claude + Twilio)"
