@@ -415,23 +415,64 @@ def api_session(sid):
 
 @app.route("/api/config", methods=["POST"])
 def api_config():
-    """Accept live credentials from the demo UI and hot-reload them."""
+    """Accept live credentials from the demo UI, hot-reload them, and optionally provision."""
     global ANTHROPIC_KEY, TWILIO_SID, TWILIO_TOKEN, TWILIO_PHONE, MOCK_MODE
     data = request.get_json(force=True)
 
-    ANTHROPIC_KEY = data.get("anthropic", "").strip()
-    TWILIO_SID    = data.get("sid", "").strip()
-    TWILIO_TOKEN  = data.get("token", "").strip()
-    TWILIO_PHONE  = data.get("twilioNum", "").strip() or TWILIO_PHONE
+    new_anthropic = data.get("anthropic", "").strip()
+    new_sid       = data.get("sid", "").strip()
+    new_token     = data.get("token", "").strip()
+    new_phone     = data.get("twilioNum", "").strip()
     customer_phone = data.get("phone", "").strip()
+    do_provision   = data.get("provision", False)
 
-    if not ANTHROPIC_KEY or not TWILIO_SID or not TWILIO_TOKEN:
-        return jsonify({"ok": False, "error": "Missing required fields"}), 400
+    if new_anthropic:
+        ANTHROPIC_KEY = new_anthropic
+    if new_sid:
+        TWILIO_SID = new_sid
+    if new_token:
+        TWILIO_TOKEN = new_token
+    if new_phone:
+        TWILIO_PHONE = new_phone
 
-    MOCK_MODE = False  # live mode now that we have keys
+    MOCK_MODE = not bool(ANTHROPIC_KEY)
+
+    # Persist to .env so creds survive server restarts
+    _write_env()
+
+    # Auto-provision: buy a number and wire webhooks if requested
+    provision_result = {}
+    if do_provision and TWILIO_SID and TWILIO_TOKEN:
+        tunnel_url = os.getenv("TUNNEL_URL", "").strip()
+        if not tunnel_url:
+            provision_result = {"warn": "No tunnel URL found — run bootstrap.sh to start a tunnel, then webhooks will be wired automatically."}
+        else:
+            try:
+                import subprocess, sys
+                script = os.path.join(os.path.dirname(__file__), "scripts", "provision.py")
+                args_cmd = [
+                    sys.executable, script,
+                    "--base-url",    tunnel_url,
+                    "--account-sid", TWILIO_SID,
+                    "--auth-token",  TWILIO_TOKEN,
+                ]
+                if TWILIO_PHONE:
+                    args_cmd += ["--phone-number", TWILIO_PHONE]
+                result = subprocess.run(args_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    # provision.py prints "PHONE:+1..." on success
+                    for line in result.stdout.splitlines():
+                        if line.startswith("PHONE:"):
+                            TWILIO_PHONE = line[6:].strip()
+                            _write_env()
+                    provision_result = {"provisioned": True, "phone": TWILIO_PHONE}
+                else:
+                    provision_result = {"warn": f"Provisioning failed: {result.stderr.strip()}"}
+            except Exception as e:
+                provision_result = {"warn": f"Provisioning error: {e}"}
 
     # Optionally send a test SMS to the customer's phone
-    if customer_phone and TWILIO_PHONE:
+    if customer_phone and TWILIO_PHONE and TWILIO_SID and TWILIO_TOKEN:
         try:
             from twilio.rest import Client
             client = Client(TWILIO_SID, TWILIO_TOKEN)
@@ -441,9 +482,33 @@ def api_config():
                 to=customer_phone
             )
         except Exception as e:
-            return jsonify({"ok": True, "warn": f"Keys saved but SMS failed: {e}"})
+            return jsonify({"ok": True, "warn": f"Keys saved but SMS failed: {e}", **provision_result})
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, **provision_result})
+
+
+def _write_env():
+    """Persist current in-memory credentials to .env."""
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    lines = []
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            lines = f.readlines()
+
+    def _set(key, val):
+        for i, line in enumerate(lines):
+            if line.startswith(f"{key}="):
+                lines[i] = f"{key}={val}\n"
+                return
+        lines.append(f"{key}={val}\n")
+
+    _set("ANTHROPIC_API_KEY",    ANTHROPIC_KEY)
+    _set("TWILIO_ACCOUNT_SID",   TWILIO_SID)
+    _set("TWILIO_AUTH_TOKEN",    TWILIO_TOKEN)
+    _set("TWILIO_PHONE_NUMBER",  TWILIO_PHONE)
+
+    with open(env_path, "w") as f:
+        f.writelines(lines)
 
 
 @app.route("/api/send-sms", methods=["POST"])
@@ -470,8 +535,8 @@ def index():
     return send_from_directory(".", "index.html")
 
 if __name__ == "__main__":
-    mode = "MOCK" if MOCK_MODE else "LIVE (Claude + Twilio)"
-    print(f"\n  Twilio Conversation Intelligence Demo")
+    mode = "MOCK (open browser to add keys)" if MOCK_MODE else "LIVE (Claude + Twilio)"
+    print(f"\n  Twilio Conversations Demo")
     print(f"  Mode: {mode}")
     print(f"  URL:  http://localhost:5050")
     if not MOCK_MODE:
