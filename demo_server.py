@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# On Render, RENDER_EXTERNAL_URL is the public URL — use it as the tunnel
+if os.getenv("RENDER_EXTERNAL_URL"):
+    os.environ.setdefault("TUNNEL_URL", os.environ["RENDER_EXTERNAL_URL"])
+
 app = Flask(__name__, static_folder=".")
 
 @app.after_request
@@ -602,4 +606,5 @@ if __name__ == "__main__":
         print(f"  WhatsApp webhook:  POST /webhook/whatsapp")
         print(f"  Voice webhook:     POST /webhook/voice")
     print(f"  Chat API:          POST /api/chat\n")
-    app.run(port=5050, debug=True)
+    port = int(os.getenv("PORT", 5050))
+    app.run(host="0.0.0.0", port=port, debug=False)
